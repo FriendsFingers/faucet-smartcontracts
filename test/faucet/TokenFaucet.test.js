@@ -1,0 +1,83 @@
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
+
+const { shouldBehaveLikeTokenFaucet } = require('./TokenFaucet.behaviour');
+
+const BigNumber = web3.BigNumber;
+
+require('chai')
+  .use(require('chai-bignumber')(BigNumber))
+  .should();
+
+const TokenFaucet = artifacts.require('TokenFaucet');
+const ERC20Mock = artifacts.require('ERC20Mock');
+
+const { ZERO_ADDRESS } = require('openzeppelin-solidity/test/helpers/constants');
+
+contract('TokenFaucet', function (accounts) {
+  const [
+    tokenOwner,
+    tokenFaucetOwner,
+    recipient,
+    thirdParty,
+  ] = accounts;
+
+  const _initialBalance = new BigNumber(1000000);
+
+  const _cap = new BigNumber(20000);
+  const _dailyRate = new BigNumber(5);
+
+  beforeEach(async function () {
+    this.token = await ERC20Mock.new(tokenOwner, _initialBalance, { from: tokenOwner });
+  });
+
+  context('creating a valid faucet', function () {
+    describe('if token address is the zero address', function () {
+      it('reverts', async function () {
+        await shouldFail.reverting(
+          TokenFaucet.new(ZERO_ADDRESS, _cap, _dailyRate, { from: tokenFaucetOwner })
+        );
+      });
+    });
+
+    describe('if cap is zero', function () {
+      it('reverts', async function () {
+        await shouldFail.reverting(
+          TokenFaucet.new(this.token.address, 0, _dailyRate, { from: tokenFaucetOwner })
+        );
+      });
+    });
+
+    describe('if daily rate is zero', function () {
+      it('reverts', async function () {
+        await shouldFail.reverting(
+          TokenFaucet.new(this.token.address, _cap, 0, { from: tokenFaucetOwner })
+        );
+      });
+    });
+
+    context('testing behaviours', function () {
+      beforeEach(async function () {
+        this.tokenFaucet = await TokenFaucet.new(
+          this.token.address,
+          _cap,
+          _dailyRate,
+          { from: tokenFaucetOwner }
+        );
+
+        await this.token.transfer(this.tokenFaucet.address, _initialBalance, { from: tokenOwner });
+      });
+
+      context('like a TokenFaucet', function () {
+        shouldBehaveLikeTokenFaucet(
+          [
+            tokenFaucetOwner,
+            recipient,
+            thirdParty,
+          ],
+          _cap,
+          _dailyRate
+        );
+      });
+    });
+  });
+});
