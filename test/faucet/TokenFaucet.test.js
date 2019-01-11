@@ -18,6 +18,7 @@ contract('TokenFaucet', function (accounts) {
     tokenOwner,
     tokenFaucetOwner,
     recipient,
+    referral,
     thirdParty,
   ] = accounts;
 
@@ -72,6 +73,7 @@ contract('TokenFaucet', function (accounts) {
           [
             tokenFaucetOwner,
             recipient,
+            referral,
             thirdParty,
           ],
           _cap,

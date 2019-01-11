@@ -16,6 +16,7 @@ contract TokenFaucet is TokenRecover {
     bool exists;
     uint256 tokens;
     uint256 lastUpdate;
+    address referral;
   }
 
   // the token to distribute
@@ -35,6 +36,9 @@ contract TokenFaucet is TokenRecover {
 
   // list of addresses who received tokens
   address[] private _recipients;
+
+  // map of address and referred addresses
+  mapping (address => address[]) private _referrals;
 
   /**
    * @param token Address of the token being distributed
@@ -62,14 +66,17 @@ contract TokenFaucet is TokenRecover {
    * @dev function to be called to receive tokens
    */
   function getTokens() public payable {
-    // update state
-    _totalDistributedTokens = _totalDistributedTokens.add(_dailyRate);
-
-    // check if cap reached
-    require(_totalDistributedTokens <= _cap);
-
     // distribute tokens
-    _distributeTokens(msg.sender, _dailyRate);
+    _distributeTokens(msg.sender, address(0));
+  }
+
+  /**
+   * @dev function to be called to receive tokens
+   * @param referral Address to an account that is referring
+   */
+  function getTokensWithReferral(address referral) public payable {
+    // distribute tokens
+    _distributeTokens(msg.sender, referral);
   }
 
   /**
@@ -117,6 +124,30 @@ contract TokenFaucet is TokenRecover {
   }
 
   /**
+   * @param account The address to check
+   * @return referral for given address
+   */
+  function getReferral(address account) public view returns(address) {
+    return _recipientList[account].referral;
+  }
+
+  /**
+   * @param account The address to check
+   * @return referred addresses for given address
+   */
+  function getReferredAddresses(address account) public view returns(address[]) {
+    return _referrals[account];
+  }
+
+  /**
+   * @param account The address to check
+   * @return referred addresses for given address
+   */
+  function getReferredAddressesLength(address account) public view returns(uint) {
+    return _referrals[account].length;
+  }
+
+  /**
    * @dev return the number of remaining tokens to distribute
    * @return uint256
    */
@@ -140,19 +171,36 @@ contract TokenFaucet is TokenRecover {
   }
 
   /**
+   * @dev update the faucet status
+   * @param amount Number of tokens being distributed
+   */
+  function _updateFaucetStatus(uint256 amount) internal {
+    _totalDistributedTokens = _totalDistributedTokens.add(amount);
+    require(_totalDistributedTokens <= _cap);
+  }
+
+  /**
    * @dev distribute tokens
    * @param account Address being distributing
-   * @param amount Amount of token distributed
+   * @param referral Address to an account that is referring
    */
-  function _distributeTokens(address account, uint256 amount) internal {
+  function _distributeTokens(address account, address referral) internal {
+    // update faucet status
+    _updateFaucetStatus(_dailyRate);
+
     if (!_recipientList[account].exists) {
       _recipients.push(account);
+      _recipientList[account].referral = referral;
       _recipientList[account].exists = true;
+
+      _referrals[referral].push(account);
     }
 
-    _recipientList[account].tokens = _recipientList[account].tokens.add(amount);
-    _recipientList[account].lastUpdate = block.timestamp; // solium-disable-line  security/no-block-members
+    // solium-disable-next-line  security/no-block-members
+    _recipientList[account].lastUpdate = block.timestamp;
+    _recipientList[account].tokens = _recipientList[account].tokens.add(_dailyRate);
 
-    _token.transfer(account, amount);
+    // transfer tokens
+    _token.transfer(account, _dailyRate);
   }
 }
