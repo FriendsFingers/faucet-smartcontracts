@@ -22,10 +22,11 @@ contract('TokenFaucet', function (accounts) {
     thirdParty,
   ] = accounts;
 
-  const _initialBalance = new BigNumber(1000000);
+  const _initialBalance = new BigNumber(web3.toWei(1000000, 'ether'));
 
-  const _cap = new BigNumber(20000);
-  const _dailyRate = new BigNumber(5);
+  const _cap = new BigNumber(web3.toWei(20000, 'ether'));
+  const _dailyRate = new BigNumber(web3.toWei(5, 'ether'));
+  const _referralPerMille = new BigNumber(100);
 
   beforeEach(async function () {
     this.token = await ERC20Mock.new(tokenOwner, _initialBalance, { from: tokenOwner });
@@ -35,7 +36,7 @@ contract('TokenFaucet', function (accounts) {
     describe('if token address is the zero address', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(ZERO_ADDRESS, _cap, _dailyRate, { from: tokenFaucetOwner })
+          TokenFaucet.new(ZERO_ADDRESS, _cap, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
@@ -43,7 +44,7 @@ contract('TokenFaucet', function (accounts) {
     describe('if cap is zero', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, 0, _dailyRate, { from: tokenFaucetOwner })
+          TokenFaucet.new(this.token.address, 0, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
@@ -51,35 +52,45 @@ contract('TokenFaucet', function (accounts) {
     describe('if daily rate is zero', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, _cap, 0, { from: tokenFaucetOwner })
+          TokenFaucet.new(this.token.address, _cap, 0, _referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
 
-    context('testing behaviours', function () {
-      beforeEach(async function () {
-        this.tokenFaucet = await TokenFaucet.new(
-          this.token.address,
-          _cap,
-          _dailyRate,
-          { from: tokenFaucetOwner }
-        );
-
-        await this.token.transfer(this.tokenFaucet.address, _initialBalance, { from: tokenOwner });
-      });
-
-      context('like a TokenFaucet', function () {
-        shouldBehaveLikeTokenFaucet(
-          [
-            tokenFaucetOwner,
-            recipient,
-            referral,
-            thirdParty,
-          ],
-          _cap,
-          _dailyRate
+    describe('if referral per mille is zero', function () {
+      it('reverts', async function () {
+        await shouldFail.reverting(
+          TokenFaucet.new(this.token.address, _cap, _dailyRate, 0, { from: tokenFaucetOwner })
         );
       });
+    });
+  });
+
+  context('testing behaviours', function () {
+    beforeEach(async function () {
+      this.tokenFaucet = await TokenFaucet.new(
+        this.token.address,
+        _cap,
+        _dailyRate,
+        _referralPerMille,
+        { from: tokenFaucetOwner }
+      );
+
+      await this.token.transfer(this.tokenFaucet.address, _initialBalance, { from: tokenOwner });
+    });
+
+    context('like a TokenFaucet', function () {
+      shouldBehaveLikeTokenFaucet(
+        [
+          tokenFaucetOwner,
+          recipient,
+          referral,
+          thirdParty,
+        ],
+        _cap,
+        _dailyRate,
+        _referralPerMille,
+      );
     });
   });
 });

@@ -28,6 +28,9 @@ contract TokenFaucet is TokenRecover {
   // the daily rate of tokens distributed
   uint256 private _dailyRate;
 
+  // the value earned by referral per mille
+  uint256 private _referralPerMille;
+
   // the sum of distributed tokens
   uint256 private _totalDistributedTokens;
 
@@ -44,28 +47,40 @@ contract TokenFaucet is TokenRecover {
    * @param token Address of the token being distributed
    * @param cap Max amount of token to be distributed
    * @param dailyRate Daily rate of tokens distributed
+   * @param referralPerMille The value earned by referral per mille
    */
-  constructor(address token, uint256 cap, uint256 dailyRate) public {
+  constructor(
+    address token,
+    uint256 cap,
+    uint256 dailyRate,
+    uint256 referralPerMille
+  )
+    public
+  {
     require(token != address(0));
     require(cap > 0);
     require(dailyRate > 0);
+    require(referralPerMille > 0);
 
     _token = ERC20(token);
     _cap = cap;
     _dailyRate = dailyRate;
+    _referralPerMille = referralPerMille;
   }
 
   /**
    * @dev fallback
    */
   function () external payable {
+    require(msg.value == 0);
+
     getTokens();
   }
 
   /**
    * @dev function to be called to receive tokens
    */
-  function getTokens() public payable {
+  function getTokens() public {
     // distribute tokens
     _distributeTokens(msg.sender, address(0));
   }
@@ -74,7 +89,7 @@ contract TokenFaucet is TokenRecover {
    * @dev function to be called to receive tokens
    * @param referral Address to an account that is referring
    */
-  function getTokensWithReferral(address referral) public payable {
+  function getTokensWithReferral(address referral) public {
     // distribute tokens
     _distributeTokens(msg.sender, referral);
   }
@@ -98,6 +113,13 @@ contract TokenFaucet is TokenRecover {
    */
   function dailyRate() public view returns(uint256) {
     return _dailyRate;
+  }
+
+  /**
+   * @return the value earned by referral for each recipient
+   */
+  function referralTokens() public view returns(uint256) {
+    return _dailyRate.mul(_referralPerMille).div(1000);
   }
 
   /**
@@ -185,22 +207,38 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function _distributeTokens(address account, address referral) internal {
-    // update faucet status
-    _updateFaucetStatus(_dailyRate);
+    uint256 earnedByReferral = 0;
+    uint256 tokens = _dailyRate;
 
+    // check if recipient exists
     if (!_recipientList[account].exists) {
       _recipients.push(account);
-      _recipientList[account].referral = referral;
       _recipientList[account].exists = true;
 
-      _referrals[referral].push(account);
+      // check if valid referral
+      if (referral != address(0)) {
+        _recipientList[account].referral = referral;
+        _referrals[referral].push(account);
+      }
     }
 
-    // solium-disable-next-line  security/no-block-members
-    _recipientList[account].lastUpdate = block.timestamp;
+    // update recipient status
+    _recipientList[account].lastUpdate = block.timestamp; // solium-disable-line security/no-block-members
     _recipientList[account].tokens = _recipientList[account].tokens.add(_dailyRate);
+
+    // check referral
+    if (_recipientList[account].referral != address(0)) {
+      earnedByReferral = referralTokens();
+      tokens = tokens.add(earnedByReferral);
+    }
+
+    // update faucet status
+    _updateFaucetStatus(tokens);
 
     // transfer tokens
     _token.transfer(account, _dailyRate);
+    if (earnedByReferral > 0) {
+      _token.transfer(_recipientList[account].referral, earnedByReferral);
+    }
   }
 }
