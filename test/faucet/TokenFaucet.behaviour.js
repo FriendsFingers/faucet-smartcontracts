@@ -1,4 +1,4 @@
-// const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
 const time = require('openzeppelin-solidity/test/helpers/time');
 
 const { shouldBehaveLikeTokenRecover } = require('eth-token-recover/test/TokenRecover.behaviour');
@@ -55,7 +55,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     });
 
     describe('first calling getTokens', function () {
-      const firstGetTokens = function (referralAddress) {
+      const getTokens = function (referralAddress) {
         it('should adjust last update for recipient', async function () {
           (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(await time.latest());
         });
@@ -120,7 +120,13 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
         });
 
-        firstGetTokens(ZERO_ADDRESS);
+        describe('if sending more than 0', function () {
+          it('reverts', async function () {
+            await shouldFail.reverting(this.tokenFaucet.sendTransaction({ value: 1, from: recipient }));
+          });
+        });
+
+        getTokens(ZERO_ADDRESS);
       });
 
       describe('via getTokens', function () {
@@ -128,7 +134,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           await this.tokenFaucet.getTokens({ from: recipient });
         });
 
-        firstGetTokens(ZERO_ADDRESS);
+        getTokens(ZERO_ADDRESS);
       });
 
       describe('via getTokensWithReferral', function () {
@@ -136,7 +142,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
         });
 
-        firstGetTokens(referral);
+        getTokens(referral);
       });
     });
   });
