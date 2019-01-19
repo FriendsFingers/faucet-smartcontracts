@@ -21,7 +21,6 @@ contract TokenFaucet is TokenRecover {
 
   // struct representing the referral status
   struct ReferralDetail {
-    bool exists;
     uint256 tokens;
     address[] recipients;
   }
@@ -51,7 +50,7 @@ contract TokenFaucet is TokenRecover {
   address[] private _recipients;
 
   // map of address and referred addresses
-  mapping (address => ReferralDetail) private _referrals;
+  mapping (address => ReferralDetail) private _referralList;
 
   /**
    * @param token Address of the token being distributed
@@ -168,7 +167,7 @@ contract TokenFaucet is TokenRecover {
    * @return earned tokens by referrals
    */
   function earnedByReferral(address account) public view returns (uint256) {
-    return _referrals[account].tokens;
+    return _referralList[account].tokens;
   }
 
   /**
@@ -176,7 +175,7 @@ contract TokenFaucet is TokenRecover {
    * @return referred addresses for given address
    */
   function getReferredAddresses(address account) public view returns (address[]) {
-    return _referrals[account].recipients;
+    return _referralList[account].recipients;
   }
 
   /**
@@ -184,7 +183,7 @@ contract TokenFaucet is TokenRecover {
    * @return referred addresses for given address
    */
   function getReferredAddressesLength(address account) public view returns (uint) {
-    return _referrals[account].recipients.length;
+    return _referralList[account].recipients.length;
   }
 
   /**
@@ -240,12 +239,8 @@ contract TokenFaucet is TokenRecover {
 
       // check if valid referral
       if (currentReferral != address(0)) {
-        // check if referral exists
-        if (!_referrals[currentReferral].exists) {
-          _referrals[currentReferral].recipients.push(account);
-          _referrals[currentReferral].exists = true;
-        }
         _recipientList[account].referral = currentReferral;
+        _referralList[currentReferral].recipients.push(account);
       }
     }
 
@@ -270,7 +265,7 @@ contract TokenFaucet is TokenRecover {
 
     // transfer tokens to referral
     if (referralEarnedTokens > 0) {
-      _referrals[currentReferral].tokens = _referrals[currentReferral].tokens.add(referralEarnedTokens);
+      _referralList[currentReferral].tokens = _referralList[currentReferral].tokens.add(referralEarnedTokens);
       _token.transfer(currentReferral, referralEarnedTokens);
     }
   }
