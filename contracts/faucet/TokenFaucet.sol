@@ -26,8 +26,11 @@ contract TokenFaucet is TokenRecover {
     address[] recipients;
   }
 
+  // the time between two tokens claim
+  uint256 private _pauseTime = 1 days;
+
   // the token to distribute
-  ERC20 internal _token;
+  ERC20 private _token;
 
   // the max token cap to distribute
   uint256 private _cap;
@@ -222,6 +225,11 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function _distributeTokens(address account, address referral) internal {
+    require(
+      !_recipientList[account].exists || _recipientList[account].lastUpdate + _pauseTime <= block.timestamp // solium-disable-line  security/no-block-members
+    );
+
+    address currentReferral = referral;
     uint256 referralEarnedTokens = 0;
     uint256 tokens = _dailyRate;
 
@@ -231,12 +239,13 @@ contract TokenFaucet is TokenRecover {
       _recipientList[account].exists = true;
 
       // check if valid referral
-      if (referral != address(0)) {
-        // check if recipient exists
-        if (!_referrals[account].exists) {
-          _referrals[referral].recipients.push(account);
+      if (currentReferral != address(0)) {
+        // check if referral exists
+        if (!_referrals[currentReferral].exists) {
+          _referrals[currentReferral].recipients.push(account);
+          _referrals[currentReferral].exists = true;
         }
-        _recipientList[account].referral = referral;
+        _recipientList[account].referral = currentReferral;
       }
     }
 
@@ -247,7 +256,7 @@ contract TokenFaucet is TokenRecover {
     // check referral
     if (_recipientList[account].referral != address(0)) {
       // referral is only the first one referring
-      referral = _recipientList[account].referral;
+      currentReferral = _recipientList[account].referral;
 
       referralEarnedTokens = referralTokens();
       tokens = tokens.add(referralEarnedTokens);
@@ -261,8 +270,8 @@ contract TokenFaucet is TokenRecover {
 
     // transfer tokens to referral
     if (referralEarnedTokens > 0) {
-      _referrals[referral].tokens = _referrals[referral].tokens.add(referralEarnedTokens);
-      _token.transfer(_recipientList[account].referral, referralEarnedTokens);
+      _referrals[currentReferral].tokens = _referrals[currentReferral].tokens.add(referralEarnedTokens);
+      _token.transfer(currentReferral, referralEarnedTokens);
     }
   }
 }

@@ -1,4 +1,5 @@
 const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
+const { advanceBlock } = require('openzeppelin-solidity/test/helpers/advanceToBlock');
 const time = require('openzeppelin-solidity/test/helpers/time');
 
 const { shouldBehaveLikeTokenRecover } = require('eth-token-recover/test/TokenRecover.behaviour');
@@ -20,6 +21,11 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
   ] = accounts;
 
   const referralTokens = dailyRate.mul(referralPerMille).div(1000);
+
+  before(async function () {
+    // Advance to the next block to correctly read time in the solidity "now" function interpreted by ganache
+    await advanceBlock();
+  });
 
   context('after creation', function () {
     describe('if valid', function () {
@@ -147,6 +153,73 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         });
 
         getTokens(referral);
+      });
+    });
+
+    describe('calling twice in the same day', function () {
+      describe('via fallback function', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
+        });
+
+        it('reverts', async function () {
+          await shouldFail.reverting(this.tokenFaucet.sendTransaction({ value: 0, from: recipient }));
+        });
+      });
+
+      describe('via getTokens', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.getTokens({ from: recipient });
+        });
+
+        it('reverts', async function () {
+          await shouldFail.reverting(this.tokenFaucet.getTokens({ from: recipient }));
+        });
+      });
+
+      describe('via getTokensWithReferral', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
+        });
+
+        it('reverts', async function () {
+          await shouldFail.reverting(this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }));
+        });
+      });
+    });
+
+    describe('calling twice in different days', function () {
+      describe('via fallback function', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
+          await time.increaseTo((await time.latest()) + time.duration.days(1));
+        });
+
+        it('success', async function () {
+          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
+        });
+      });
+
+      describe('via getTokens', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.getTokens({ from: recipient });
+          await time.increaseTo((await time.latest()) + time.duration.days(1));
+        });
+
+        it('success', async function () {
+          await this.tokenFaucet.getTokens({ from: recipient });
+        });
+      });
+
+      describe('via getTokensWithReferral', function () {
+        beforeEach(async function () {
+          await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
+          await time.increaseTo((await time.latest()) + time.duration.days(1));
+        });
+
+        it('success', async function () {
+          await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
+        });
       });
     });
   });
