@@ -31,9 +31,6 @@ contract TokenFaucet is TokenRecover {
   // the token to distribute
   ERC20 private _token;
 
-  // the max token cap to distribute
-  uint256 private _cap;
-
   // the daily rate of tokens distributed
   uint256 private _dailyRate;
 
@@ -54,25 +51,21 @@ contract TokenFaucet is TokenRecover {
 
   /**
    * @param token Address of the token being distributed
-   * @param cap Max amount of token to be distributed
    * @param dailyRate Daily rate of tokens distributed
    * @param referralPerMille The value earned by referral per mille
    */
   constructor(
     address token,
-    uint256 cap,
     uint256 dailyRate,
     uint256 referralPerMille
   )
     public
   {
     require(token != address(0));
-    require(cap > 0);
     require(dailyRate > 0);
     require(referralPerMille > 0);
 
     _token = ERC20(token);
-    _cap = cap;
     _dailyRate = dailyRate;
     _referralPerMille = referralPerMille;
   }
@@ -108,13 +101,6 @@ contract TokenFaucet is TokenRecover {
    */
   function token() public view returns (ERC20) {
     return _token;
-  }
-
-  /**
-   * @return the max token cap to distribute
-   */
-  function cap() public view returns (uint256) {
-    return _cap;
   }
 
   /**
@@ -191,7 +177,7 @@ contract TokenFaucet is TokenRecover {
    * @return uint256
    */
   function remainingTokens() public view returns (uint256) {
-    return _cap.sub(_totalDistributedTokens);
+    return _token.balanceOf(this);
   }
 
   /**
@@ -210,15 +196,6 @@ contract TokenFaucet is TokenRecover {
   }
 
   /**
-   * @dev update the faucet status
-   * @param amount Number of tokens being distributed
-   */
-  function _updateFaucetStatus(uint256 amount) internal {
-    _totalDistributedTokens = _totalDistributedTokens.add(amount);
-    require(_totalDistributedTokens <= _cap);
-  }
-
-  /**
    * @dev distribute tokens
    * @param account Address being distributing
    * @param referral Address to an account that is referring
@@ -228,19 +205,15 @@ contract TokenFaucet is TokenRecover {
       !_recipientList[account].exists || _recipientList[account].lastUpdate + _pauseTime <= block.timestamp // solium-disable-line  security/no-block-members
     );
 
-    address currentReferral = referral;
-    uint256 referralEarnedTokens = 0;
-    uint256 tokens = _dailyRate;
-
     // check if recipient exists
     if (!_recipientList[account].exists) {
       _recipients.push(account);
       _recipientList[account].exists = true;
 
       // check if valid referral
-      if (currentReferral != address(0)) {
-        _recipientList[account].referral = currentReferral;
-        _referralList[currentReferral].recipients.push(account);
+      if (referral != address(0)) {
+        _recipientList[account].referral = referral;
+        _referralList[referral].recipients.push(account);
       }
     }
 
@@ -248,25 +221,27 @@ contract TokenFaucet is TokenRecover {
     _recipientList[account].lastUpdate = block.timestamp; // solium-disable-line security/no-block-members
     _recipientList[account].tokens = _recipientList[account].tokens.add(_dailyRate);
 
-    // check referral
-    if (_recipientList[account].referral != address(0)) {
-      // referral is only the first one referring
-      currentReferral = _recipientList[account].referral;
-
-      referralEarnedTokens = referralTokens();
-      tokens = tokens.add(referralEarnedTokens);
-    }
-
     // update faucet status
-    _updateFaucetStatus(tokens);
+    _totalDistributedTokens = _totalDistributedTokens.add(_dailyRate);
 
     // transfer tokens to recipient
     _token.transfer(account, _dailyRate);
 
-    // transfer tokens to referral
-    if (referralEarnedTokens > 0) {
-      _referralList[currentReferral].tokens = _referralList[currentReferral].tokens.add(referralEarnedTokens);
-      _token.transfer(currentReferral, referralEarnedTokens);
+    // check referral
+    if (_recipientList[account].referral != address(0)) {
+      // referral is only the first one referring
+      address firstReferral = _recipientList[account].referral;
+
+      uint256 referralEarnedTokens = referralTokens();
+
+      // update referral status
+      _referralList[firstReferral].tokens = _referralList[firstReferral].tokens.add(referralEarnedTokens);
+
+      // update faucet status
+      _totalDistributedTokens = _totalDistributedTokens.add(referralEarnedTokens);
+
+      // transfer tokens to referral
+      _token.transfer(firstReferral, referralEarnedTokens);
     }
   }
 }

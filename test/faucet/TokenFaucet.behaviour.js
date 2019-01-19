@@ -33,10 +33,6 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         (await this.tokenFaucet.token()).should.be.equal(this.token.address);
       });
 
-      it('has a valid cap', async function () {
-        (await this.tokenFaucet.cap()).should.be.bignumber.equal(cap);
-      });
-
       it('has a valid daily rate', async function () {
         (await this.tokenFaucet.dailyRate()).should.be.bignumber.equal(dailyRate);
       });
@@ -60,16 +56,8 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
       });
     });
 
-    describe('first calling getTokens', function () {
+    describe('calling getTokens the first time', function () {
       const getTokens = function (referralAddress) {
-        it('should adjust last update for recipient', async function () {
-          (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(await time.latest());
-        });
-
-        it('should have the right referral', async function () {
-          (await this.tokenFaucet.getReferral(recipient)).should.be.equal(referralAddress);
-        });
-
         it('should increase recipients length', async function () {
           (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(1);
         });
@@ -86,6 +74,14 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           (await this.tokenFaucet.receivedTokens(recipient)).should.be.bignumber.equal(dailyRate);
         });
 
+        it('should adjust last update for recipient', async function () {
+          (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(await time.latest());
+        });
+
+        it('should have the right referral', async function () {
+          (await this.tokenFaucet.getReferral(recipient)).should.be.equal(referralAddress);
+        });
+
         if (referralAddress !== ZERO_ADDRESS) {
           it('should transfer the referral per mille to referral', async function () {
             (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralTokens);
@@ -99,10 +95,8 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
             (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.add(referralTokens));
           });
 
-          it('should decrease remaining tokens of the daily rate plus referral per mille', async function () {
-            (
-              await this.tokenFaucet.remainingTokens()
-            ).should.be.bignumber.equal(cap.sub(dailyRate.add(referralTokens)));
+          it('referral should have a right length of referred users', async function () {
+            (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(1);
           });
 
           it('referral should have recipient in its referred list', async function () {
@@ -110,19 +104,17 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
             referredAddresses.length.should.be.equal(1);
             referredAddresses[0].should.be.equal(recipient);
           });
-
-          it('referral should have a right length of referred users', async function () {
-            (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(1);
-          });
         } else {
           it('should increase total distributed tokens of the daily rate', async function () {
             (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate);
           });
-
-          it('should decrease remaining tokens of the daily rate', async function () {
-            (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(cap.sub(dailyRate));
-          });
         }
+
+        it('should decrease remaining tokens', async function () {
+          (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(
+            await this.token.balanceOf(this.tokenFaucet.address)
+          );
+        });
       };
 
       describe('via fallback function', function () {

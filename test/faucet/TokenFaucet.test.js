@@ -22,9 +22,8 @@ contract('TokenFaucet', function (accounts) {
     thirdParty,
   ] = accounts;
 
-  const _initialBalance = new BigNumber(web3.toWei(1000000, 'ether'));
+  const _initialBalance = new BigNumber(web3.toWei(100, 'ether'));
 
-  const _cap = new BigNumber(web3.toWei(20000, 'ether'));
   const _dailyRate = new BigNumber(web3.toWei(5, 'ether'));
   const _referralPerMille = new BigNumber(100);
 
@@ -36,15 +35,7 @@ contract('TokenFaucet', function (accounts) {
     describe('if token address is the zero address', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(ZERO_ADDRESS, _cap, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
-        );
-      });
-    });
-
-    describe('if cap is zero', function () {
-      it('reverts', async function () {
-        await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, 0, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
+          TokenFaucet.new(ZERO_ADDRESS, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
@@ -52,7 +43,7 @@ contract('TokenFaucet', function (accounts) {
     describe('if daily rate is zero', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, _cap, 0, _referralPerMille, { from: tokenFaucetOwner })
+          TokenFaucet.new(this.token.address, 0, _referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
@@ -60,7 +51,7 @@ contract('TokenFaucet', function (accounts) {
     describe('if referral per mille is zero', function () {
       it('reverts', async function () {
         await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, _cap, _dailyRate, 0, { from: tokenFaucetOwner })
+          TokenFaucet.new(this.token.address, _dailyRate, 0, { from: tokenFaucetOwner })
         );
       });
     });
@@ -70,7 +61,6 @@ contract('TokenFaucet', function (accounts) {
     beforeEach(async function () {
       this.tokenFaucet = await TokenFaucet.new(
         this.token.address,
-        _cap,
         _dailyRate,
         _referralPerMille,
         { from: tokenFaucetOwner }
@@ -87,7 +77,7 @@ contract('TokenFaucet', function (accounts) {
           referral,
           thirdParty,
         ],
-        _cap,
+        _initialBalance,
         _dailyRate,
         _referralPerMille,
       );
