@@ -62,6 +62,12 @@ Test
 test
 ```
 
+### Profiling
+
+```bash
+npm run profile
+```
+
 ## Optional
 
 Install the [truffle-flattener](https://github.com/alcuadrado/truffle-flattener)

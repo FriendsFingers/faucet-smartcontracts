@@ -19,6 +19,13 @@ contract TokenFaucet is TokenRecover {
     address referral;
   }
 
+  // struct representing the referral status
+  struct ReferralDetail {
+    bool exists;
+    uint256 tokens;
+    address[] recipients;
+  }
+
   // the token to distribute
   ERC20 internal _token;
 
@@ -41,7 +48,7 @@ contract TokenFaucet is TokenRecover {
   address[] private _recipients;
 
   // map of address and referred addresses
-  mapping (address => address[]) private _referrals;
+  mapping (address => ReferralDetail) private _referrals;
 
   /**
    * @param token Address of the token being distributed
@@ -97,35 +104,35 @@ contract TokenFaucet is TokenRecover {
   /**
    * @return the token to distribute
    */
-  function token() public view returns(ERC20) {
+  function token() public view returns (ERC20) {
     return _token;
   }
 
   /**
    * @return the max token cap to distribute
    */
-  function cap() public view returns(uint256) {
+  function cap() public view returns (uint256) {
     return _cap;
   }
 
   /**
    * @return the daily rate of tokens distributed
    */
-  function dailyRate() public view returns(uint256) {
+  function dailyRate() public view returns (uint256) {
     return _dailyRate;
   }
 
   /**
    * @return the value earned by referral for each recipient
    */
-  function referralTokens() public view returns(uint256) {
+  function referralTokens() public view returns (uint256) {
     return _dailyRate.mul(_referralPerMille).div(1000);
   }
 
   /**
    * @return the sum of distributed tokens
    */
-  function totalDistributedTokens() public view returns(uint256) {
+  function totalDistributedTokens() public view returns (uint256) {
     return _totalDistributedTokens;
   }
 
@@ -133,7 +140,7 @@ contract TokenFaucet is TokenRecover {
    * @param account The address to check
    * @return received token amount for the given address
    */
-  function receivedTokens(address account) public view returns(uint256) {
+  function receivedTokens(address account) public view returns (uint256) {
     return _recipientList[account].tokens;
   }
 
@@ -141,7 +148,7 @@ contract TokenFaucet is TokenRecover {
    * @param account The address to check
    * @return last tokens received timestamp
    */
-  function lastUpdate(address account) public view returns(uint256) {
+  function lastUpdate(address account) public view returns (uint256) {
     return _recipientList[account].lastUpdate;
   }
 
@@ -149,38 +156,46 @@ contract TokenFaucet is TokenRecover {
    * @param account The address to check
    * @return referral for given address
    */
-  function getReferral(address account) public view returns(address) {
+  function getReferral(address account) public view returns (address) {
     return _recipientList[account].referral;
   }
 
   /**
    * @param account The address to check
-   * @return referred addresses for given address
+   * @return earned tokens by referrals
    */
-  function getReferredAddresses(address account) public view returns(address[]) {
-    return _referrals[account];
+  function earnedByReferral(address account) public view returns (uint256) {
+    return _referrals[account].tokens;
   }
 
   /**
    * @param account The address to check
    * @return referred addresses for given address
    */
-  function getReferredAddressesLength(address account) public view returns(uint) {
-    return _referrals[account].length;
+  function getReferredAddresses(address account) public view returns (address[]) {
+    return _referrals[account].recipients;
+  }
+
+  /**
+   * @param account The address to check
+   * @return referred addresses for given address
+   */
+  function getReferredAddressesLength(address account) public view returns (uint) {
+    return _referrals[account].recipients.length;
   }
 
   /**
    * @dev return the number of remaining tokens to distribute
    * @return uint256
    */
-  function remainingTokens() public view returns(uint256) {
+  function remainingTokens() public view returns (uint256) {
     return _cap.sub(_totalDistributedTokens);
   }
 
   /**
    * @return address of a recipient by list index
    */
-  function getRecipientAddress(uint256 index) public view returns(address) {
+  function getRecipientAddress(uint256 index) public view returns (address) {
     return _recipients[index];
   }
 
@@ -207,7 +222,7 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function _distributeTokens(address account, address referral) internal {
-    uint256 earnedByReferral = 0;
+    uint256 referralEarnedTokens = 0;
     uint256 tokens = _dailyRate;
 
     // check if recipient exists
@@ -217,8 +232,11 @@ contract TokenFaucet is TokenRecover {
 
       // check if valid referral
       if (referral != address(0)) {
+        // check if recipient exists
+        if (!_referrals[account].exists) {
+          _referrals[referral].recipients.push(account);
+        }
         _recipientList[account].referral = referral;
-        _referrals[referral].push(account);
       }
     }
 
@@ -228,17 +246,23 @@ contract TokenFaucet is TokenRecover {
 
     // check referral
     if (_recipientList[account].referral != address(0)) {
-      earnedByReferral = referralTokens();
-      tokens = tokens.add(earnedByReferral);
+      // referral is only the first one referring
+      referral = _recipientList[account].referral;
+
+      referralEarnedTokens = referralTokens();
+      tokens = tokens.add(referralEarnedTokens);
     }
 
     // update faucet status
     _updateFaucetStatus(tokens);
 
-    // transfer tokens
+    // transfer tokens to recipient
     _token.transfer(account, _dailyRate);
-    if (earnedByReferral > 0) {
-      _token.transfer(_recipientList[account].referral, earnedByReferral);
+
+    // transfer tokens to referral
+    if (referralEarnedTokens > 0) {
+      _referrals[referral].tokens = _referrals[referral].tokens.add(referralEarnedTokens);
+      _token.transfer(_recipientList[account].referral, referralEarnedTokens);
     }
   }
 }

@@ -85,6 +85,10 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
             (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralTokens);
           });
 
+          it('should increase referral earned token by referral per mille', async function () {
+            (await this.tokenFaucet.earnedByReferral(referralAddress)).should.be.bignumber.equal(referralTokens);
+          });
+
           it('should increase total distributed tokens of the daily rate plus referral per mille', async function () {
             (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.add(referralTokens));
           });
