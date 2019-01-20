@@ -79,7 +79,7 @@ npm install -g truffle-flattener
 Usage
 
 ```bash
-truffle-flattener contracts/faucet/TokenFaucet.sol > .dist/TokenFaucet.dist.sol
+truffle-flattener contracts/faucet/TokenFaucet.sol > dist/TokenFaucet.dist.sol
 ```
 
 ## License

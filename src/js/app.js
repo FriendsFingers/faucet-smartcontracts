@@ -33,6 +33,11 @@ App = {
       App.contracts.ERC20 = TruffleContract(data);
       App.contracts.ERC20.setProvider(App.web3Provider);
     });
+
+    $.getJSON('TokenFaucet.json', function (data) {
+      App.contracts.TokenFaucet = TruffleContract(data);
+      App.contracts.TokenFaucet.setProvider(App.web3Provider);
+    });
   },
 };
 
