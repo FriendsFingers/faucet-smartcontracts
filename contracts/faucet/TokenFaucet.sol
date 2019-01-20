@@ -142,6 +142,14 @@ contract TokenFaucet is TokenRecover {
 
   /**
    * @param account The address to check
+   * @return time of next available claim or zero
+   */
+  function nextClaimTime(address account) public view returns (uint256) {
+    return !_recipientList[account].exists ? 0 : _recipientList[account].lastUpdate + _pauseTime;
+  }
+
+  /**
+   * @param account The address to check
    * @return referral for given address
    */
   function getReferral(address account) public view returns (address) {
@@ -201,9 +209,7 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function _distributeTokens(address account, address referral) internal {
-    require(
-      !_recipientList[account].exists || _recipientList[account].lastUpdate + _pauseTime <= block.timestamp // solium-disable-line  security/no-block-members
-    );
+    require(nextClaimTime(account) <= block.timestamp);
 
     // check if recipient exists
     if (!_recipientList[account].exists) {

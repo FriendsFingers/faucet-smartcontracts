@@ -49,6 +49,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         (await this.token.balanceOf(recipient)).should.be.bignumber.equal(0);
         (await this.tokenFaucet.receivedTokens(recipient)).should.be.bignumber.equal(0);
         (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(0);
+        (await this.tokenFaucet.nextClaimTime(recipient)).should.be.bignumber.equal(0);
         (await this.tokenFaucet.getReferral(recipient)).should.be.equal(ZERO_ADDRESS);
         (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(0);
         (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(cap);
@@ -76,6 +77,11 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
         it('should adjust last update for recipient', async function () {
           (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(await time.latest());
+        });
+
+        it('should have right next claim time', async function () {
+          (await this.tokenFaucet.nextClaimTime(recipient))
+            .should.be.bignumber.equal((await time.latest()) + time.duration.days(1));
         });
 
         it('should have the right referral', async function () {
