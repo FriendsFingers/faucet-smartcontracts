@@ -209,7 +209,7 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function _distributeTokens(address account, address referral) internal {
-    require(nextClaimTime(account) <= block.timestamp);
+    require(nextClaimTime(account) <= block.timestamp); // solium-disable-line security/no-block-members
 
     // check if recipient exists
     if (!_recipientList[account].exists) {
