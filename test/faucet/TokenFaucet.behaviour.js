@@ -150,6 +150,12 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
         });
 
+        describe('if referral is msg sender', function () {
+          it('reverts', async function () {
+            await shouldFail.reverting(this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }));
+          });
+        });
+
         getTokens(referral);
       });
     });

@@ -92,6 +92,8 @@ contract TokenFaucet is TokenRecover {
    * @param referral Address to an account that is referring
    */
   function getTokensWithReferral(address referral) public {
+    require(referral != msg.sender);
+
     // distribute tokens
     _distributeTokens(msg.sender, referral);
   }
