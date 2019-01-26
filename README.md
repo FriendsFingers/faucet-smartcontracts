@@ -6,21 +6,23 @@
 Smart Contracts for an ERC20 token faucet with referral system.
 
 
-## Installation
+## Development
 
-Install truffle.
+Install Truffle if you want to run your own node
+
+Version 4.1.15 required
 
 ```bash
-npm install -g truffle      // Version 4.1.15+ required
+npm install -g truffle
 ```
 
-## Install dependencies
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-## Linter
+### Linter
 
 Use Ethlint
 
@@ -34,32 +36,30 @@ Use ESLint
 npm run lint:js
 ```
 
-#### Note
-
-IMPORTANT: Before commit run the lint and fix command:
+Use both and fix
 
 ```bash
 npm run lint:fix
 ```
 
-## Compile and test the contracts
+## Usage
  
-Open the Truffle console
+### Compile
 
 ```bash
-truffle develop
+npm run compile
 ```
 
-Compile 
+### Test 
 
 ```bash
-compile 
+npm run test 
 ```
 
-Test
+### Code Coverage
 
 ```bash
-test
+npm run coverage
 ```
 
 ### Profiling

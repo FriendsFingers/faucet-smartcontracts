@@ -206,6 +206,19 @@ contract TokenFaucet is TokenRecover {
   }
 
   /**
+   * @dev change daily rate and referral per mille
+   * @param newDailyRate Daily rate of tokens distributed
+   * @param newReferralPerMille The value earned by referral per mille
+   */
+  function setRates(uint256 newDailyRate, uint256 newReferralPerMille) public onlyOwner {
+    require(newDailyRate > 0);
+    require(newReferralPerMille > 0);
+
+    _dailyRate = newDailyRate;
+    _referralPerMille = newReferralPerMille;
+  }
+
+  /**
    * @dev distribute tokens
    * @param account Address being distributing
    * @param referral Address to an account that is referring

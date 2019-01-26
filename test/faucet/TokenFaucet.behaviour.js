@@ -41,6 +41,50 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         (await this.tokenFaucet.referralTokens()).should.be.bignumber.equal(referralTokens);
       });
     });
+
+    describe('change rates', function () {
+      const _dailyRate = new BigNumber(web3.toWei(10, 'ether'));
+      const _referralPerMille = new BigNumber(200);
+
+      describe('if daily rate is zero', function () {
+        it('reverts', async function () {
+          await shouldFail.reverting(
+            this.tokenFaucet.setRates(0, _referralPerMille, { from: tokenFaucetOwner })
+          );
+        });
+      });
+
+      describe('if referral per mille is zero', function () {
+        it('reverts', async function () {
+          await shouldFail.reverting(
+            this.tokenFaucet.setRates(_dailyRate, 0, { from: tokenFaucetOwner })
+          );
+        });
+      });
+
+      describe('if called by a not owner', function () {
+        it('reverts', async function () {
+          await shouldFail.reverting(
+            this.tokenFaucet.setRates(_dailyRate, _referralPerMille, { from: thirdParty })
+          );
+        });
+      });
+
+      describe('if success', function () {
+        beforeEach(async function () {
+          this.tokenFaucet.setRates(_dailyRate, _referralPerMille, { from: tokenFaucetOwner });
+        });
+
+        it('has a valid daily rate', async function () {
+          (await this.tokenFaucet.dailyRate()).should.be.bignumber.equal(_dailyRate);
+        });
+
+        it('has a valid referral tokens value', async function () {
+          const _referralTokens = _dailyRate.mul(_referralPerMille).div(1000);
+          (await this.tokenFaucet.referralTokens()).should.be.bignumber.equal(_referralTokens);
+        });
+      });
+    });
   });
 
   context('claiming tokens', function () {

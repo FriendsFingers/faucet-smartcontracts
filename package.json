@@ -8,14 +8,15 @@
   },
   "scripts": {
     "dev": "lite-server",
-    "test": "scripts/test.sh",
     "lint:js": "eslint .",
     "lint:js:fix": "eslint . --fix",
     "lint:sol": "solium -d .",
     "lint:sol:fix": "solium -d . --fix",
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-    "console": "truffle console",
+    "console": "truffle develop",
+    "compile": "truffle compile --all",
+    "test": "scripts/test.sh",
     "coverage": "scripts/coverage.sh",
     "clean": "rm -rf coverage",
     "profile": "npm run clean && npm run coverage && open coverage/index.html"
