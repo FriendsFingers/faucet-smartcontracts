@@ -1,0 +1,10 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "indent": ["error", 4],
+    "bracket-align": "off",
+    "compiler-fixed": "off",
+    "mark-callable-contracts": "off",
+    "compiler-version": ["error", "^0.5.10"]
+  }
+}

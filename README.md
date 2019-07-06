@@ -1,20 +1,14 @@
-# Token faucet
+# FriendsFingers' Faucet
 
-[![Build Status](https://travis-ci.org/comethio/faucet-smartcontracts.svg?branch=master)](https://travis-ci.org/comethio/faucet-smartcontracts) 
-[![Coverage Status](https://coveralls.io/repos/github/comethio/faucet-smartcontracts/badge.svg?branch=master)](https://coveralls.io/github/comethio/faucet-smartcontracts?branch=master)
+[![Build Status](https://travis-ci.org/FriendsFingers/faucet-smartcontracts.svg?branch=master)](https://travis-ci.org/FriendsFingers/faucet-smartcontracts) 
+[![Coverage Status](https://coveralls.io/repos/github/FriendsFingers/faucet-smartcontracts/badge.svg)](https://coveralls.io/github/FriendsFingers/faucet-smartcontracts)
+[![MIT licensed](https://img.shields.io/github/license/FriendsFingers/faucet-smartcontracts.svg)](https://github.com/FriendsFingers/faucet-smartcontracts/blob/master/LICENSE)
 
-Smart Contracts for an ERC20 token faucet with referral system.
+
+The FriendsFingers' Faucet Smart Contracts
 
 
 ## Development
-
-Install Truffle if you want to run your own node
-
-Version 4.1.15 required
-
-```bash
-npm install -g truffle
-```
 
 ### Install dependencies
 
@@ -22,28 +16,14 @@ npm install -g truffle
 npm install
 ```
 
-### Linter
-
-Use Ethlint
-
-```bash
-npm run lint:sol
-```
-
-Use ESLint
-
-```bash
-npm run lint:js
-```
-
-Use both and fix
-
-```bash
-npm run lint:fix
-```
-
 ## Usage
- 
+
+Open the Truffle console
+
+```bash
+npm run console
+```
+
 ### Compile
 
 ```bash
@@ -62,26 +42,69 @@ npm run test
 npm run coverage
 ```
 
-### Profiling
+## Linter
+
+Use Solhint
 
 ```bash
-npm run profile
+npm run lint:sol
 ```
 
-## Optional
-
-Install the [truffle-flattener](https://github.com/alcuadrado/truffle-flattener)
+Use ESLint
 
 ```bash
-npm install -g truffle-flattener
+npm run lint:js
 ```
 
-Usage
+Use ESLint and fix
 
 ```bash
-truffle-flattener contracts/faucet/TokenFaucet.sol > dist/TokenFaucet.dist.sol
+npm run lint:fix
 ```
+
+## Flattener
+
+This allow to flatten the code into a single file
+
+Edit `scripts/flat.sh` to add your contracts
+
+```bash
+npm run flat
+```
+
+## Analysis
+
+Note: it is better to analyze the flattened code to have a bigger overview on the entire codebase. So run the flattener first.
+
+### Describe
+
+The `describe` command shows a summary of the contracts and methods in the files provided
+
+```bash
+surya describe dist/TokenFaucet.dist.sol
+```
+
+### Dependencies
+
+The `dependencies` command outputs the c3-linearization of a given contract's inheirtance graph. Contracts will be listed starting with most-derived, ie. if the same function is defined in more than one contract, the solidity compiler will use the definition in whichever contract is listed first.
+
+```bash
+surya dependencies TokenFaucet dist/TokenFaucet.dist.sol
+```
+### Generate Report
+
+Edit `scripts/analyze.sh` to add your contracts 
+
+```bash
+npm run analyze
+```
+
+The `inheritance` command outputs a DOT-formatted graph of the inheritance tree.
+
+The `graph` command outputs a DOT-formatted graph of the control flow.
+
+The `mdreport` command creates a markdown description report with tables comprising information about the system's files, contracts and their functions.
 
 ## License
 
-Code released under the [MIT License](https://github.com/comethio/faucet-smartcontracts/blob/master/LICENSE).
+Code released under the [MIT License](https://github.com/FriendsFingers/faucet-smartcontracts/blob/master/LICENSE).

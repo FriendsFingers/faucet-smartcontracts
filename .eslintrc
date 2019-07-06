@@ -4,6 +4,7 @@
     "plugin:promise/recommended"
   ],
   "plugins": [
+    "mocha-no-only",
     "promise"
   ],
   "env": {
@@ -49,7 +50,9 @@
     "semi": ["error", "always"],
     "space-before-function-paren": ["error", "always"],
 
+    "mocha-no-only/mocha-no-only": ["error"],
+
     "promise/always-return": "off",
-    "promise/avoid-new": "off",
+    "promise/avoid-new": "off"
   }
 }

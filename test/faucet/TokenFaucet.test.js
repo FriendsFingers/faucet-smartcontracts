@@ -1,17 +1,10 @@
-const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
+const { BN, constants, expectRevert } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
 const { shouldBehaveLikeTokenFaucet } = require('./TokenFaucet.behaviour');
 
-const BigNumber = web3.BigNumber;
-
-require('chai')
-  .use(require('chai-bignumber')(BigNumber))
-  .should();
-
 const TokenFaucet = artifacts.require('TokenFaucet');
 const ERC20Mock = artifacts.require('ERC20Mock');
-
-const { ZERO_ADDRESS } = require('openzeppelin-solidity/test/helpers/constants');
 
 contract('TokenFaucet', function (accounts) {
   const [
@@ -22,36 +15,36 @@ contract('TokenFaucet', function (accounts) {
     thirdParty,
   ] = accounts;
 
-  const _initialBalance = new BigNumber(web3.toWei(100, 'ether'));
+  const initialBalance = new BN(1000000000);
 
-  const _dailyRate = new BigNumber(web3.toWei(5, 'ether'));
-  const _referralPerMille = new BigNumber(100);
+  const dailyRate = new BN(50);
+  const referralPerMille = new BN(100);
 
   beforeEach(async function () {
-    this.token = await ERC20Mock.new(tokenOwner, _initialBalance, { from: tokenOwner });
+    this.token = await ERC20Mock.new(tokenOwner, initialBalance, { from: tokenOwner });
   });
 
   context('creating a valid faucet', function () {
     describe('if token address is the zero address', function () {
       it('reverts', async function () {
-        await shouldFail.reverting(
-          TokenFaucet.new(ZERO_ADDRESS, _dailyRate, _referralPerMille, { from: tokenFaucetOwner })
+        await expectRevert.unspecified(
+          TokenFaucet.new(ZERO_ADDRESS, dailyRate, referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
 
     describe('if daily rate is zero', function () {
       it('reverts', async function () {
-        await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, 0, _referralPerMille, { from: tokenFaucetOwner })
+        await expectRevert.unspecified(
+          TokenFaucet.new(this.token.address, 0, referralPerMille, { from: tokenFaucetOwner })
         );
       });
     });
 
     describe('if referral per mille is zero', function () {
       it('reverts', async function () {
-        await shouldFail.reverting(
-          TokenFaucet.new(this.token.address, _dailyRate, 0, { from: tokenFaucetOwner })
+        await expectRevert.unspecified(
+          TokenFaucet.new(this.token.address, dailyRate, 0, { from: tokenFaucetOwner })
         );
       });
     });
@@ -61,12 +54,12 @@ contract('TokenFaucet', function (accounts) {
     beforeEach(async function () {
       this.tokenFaucet = await TokenFaucet.new(
         this.token.address,
-        _dailyRate,
-        _referralPerMille,
+        dailyRate,
+        referralPerMille,
         { from: tokenFaucetOwner }
       );
 
-      await this.token.transfer(this.tokenFaucet.address, _initialBalance, { from: tokenOwner });
+      await this.token.transfer(this.tokenFaucet.address, initialBalance, { from: tokenOwner });
     });
 
     context('like a TokenFaucet', function () {
@@ -77,9 +70,9 @@ contract('TokenFaucet', function (accounts) {
           referral,
           thirdParty,
         ],
-        _initialBalance,
-        _dailyRate,
-        _referralPerMille,
+        initialBalance,
+        dailyRate,
+        referralPerMille,
       );
     });
   });

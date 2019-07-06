@@ -1,16 +1,7 @@
-const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail');
-const { advanceBlock } = require('openzeppelin-solidity/test/helpers/advanceToBlock');
-const time = require('openzeppelin-solidity/test/helpers/time');
+const { BN, constants, expectRevert, time } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
 
 const { shouldBehaveLikeTokenRecover } = require('eth-token-recover/test/TokenRecover.behaviour');
-
-const BigNumber = web3.BigNumber;
-
-require('chai')
-  .use(require('chai-bignumber')(BigNumber))
-  .should();
-
-const { ZERO_ADDRESS } = require('openzeppelin-solidity/test/helpers/constants');
 
 function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille) {
   const [
@@ -20,11 +11,11 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     thirdParty,
   ] = accounts;
 
-  const referralTokens = dailyRate.mul(referralPerMille).div(1000);
+  const referralTokens = dailyRate.mul(referralPerMille).divn(1000);
 
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by ganache
-    await advanceBlock();
+    await time.advanceBlock();
   });
 
   context('after creation', function () {
@@ -42,45 +33,45 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
       });
     });
 
-    describe('change rates', function () {
-      const _dailyRate = new BigNumber(web3.toWei(10, 'ether'));
-      const _referralPerMille = new BigNumber(200);
+    context('change rates', function () {
+      const newDailyRate = new BN(100);
+      const newReferralPerMille = new BN(200);
 
       describe('if daily rate is zero', function () {
         it('reverts', async function () {
-          await shouldFail.reverting(
-            this.tokenFaucet.setRates(0, _referralPerMille, { from: tokenFaucetOwner })
+          await expectRevert.unspecified(
+            this.tokenFaucet.setRates(0, newReferralPerMille, { from: tokenFaucetOwner })
           );
         });
       });
 
       describe('if referral per mille is zero', function () {
         it('reverts', async function () {
-          await shouldFail.reverting(
-            this.tokenFaucet.setRates(_dailyRate, 0, { from: tokenFaucetOwner })
+          await expectRevert.unspecified(
+            this.tokenFaucet.setRates(newDailyRate, 0, { from: tokenFaucetOwner })
           );
         });
       });
 
       describe('if called by a not owner', function () {
         it('reverts', async function () {
-          await shouldFail.reverting(
-            this.tokenFaucet.setRates(_dailyRate, _referralPerMille, { from: thirdParty })
+          await expectRevert.unspecified(
+            this.tokenFaucet.setRates(newDailyRate, newReferralPerMille, { from: thirdParty })
           );
         });
       });
 
       describe('if success', function () {
         beforeEach(async function () {
-          this.tokenFaucet.setRates(_dailyRate, _referralPerMille, { from: tokenFaucetOwner });
+          this.tokenFaucet.setRates(newDailyRate, newReferralPerMille, { from: tokenFaucetOwner });
         });
 
         it('has a valid daily rate', async function () {
-          (await this.tokenFaucet.dailyRate()).should.be.bignumber.equal(_dailyRate);
+          (await this.tokenFaucet.dailyRate()).should.be.bignumber.equal(newDailyRate);
         });
 
         it('has a valid referral tokens value', async function () {
-          const _referralTokens = _dailyRate.mul(_referralPerMille).div(1000);
+          const _referralTokens = newDailyRate.mul(newReferralPerMille).divn(1000);
           (await this.tokenFaucet.referralTokens()).should.be.bignumber.equal(_referralTokens);
         });
       });
@@ -90,21 +81,21 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
   context('claiming tokens', function () {
     describe('before calling getTokens', function () {
       it('checking initial values', async function () {
-        (await this.token.balanceOf(recipient)).should.be.bignumber.equal(0);
-        (await this.tokenFaucet.receivedTokens(recipient)).should.be.bignumber.equal(0);
-        (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(0);
-        (await this.tokenFaucet.nextClaimTime(recipient)).should.be.bignumber.equal(0);
+        (await this.token.balanceOf(recipient)).should.be.bignumber.equal(new BN(0));
+        (await this.tokenFaucet.receivedTokens(recipient)).should.be.bignumber.equal(new BN(0));
+        (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(new BN(0));
+        (await this.tokenFaucet.nextClaimTime(recipient)).should.be.bignumber.equal(new BN(0));
         (await this.tokenFaucet.getReferral(recipient)).should.be.equal(ZERO_ADDRESS);
-        (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(0);
+        (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(new BN(0));
         (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(cap);
-        (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(0);
+        (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(0));
       });
     });
 
     describe('calling getTokens the first time', function () {
       const getTokens = function (referralAddress) {
         it('should increase recipients length', async function () {
-          (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(1);
+          (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(1));
         });
 
         it('recipients array should start with recipient address', async function () {
@@ -125,7 +116,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
         it('should have right next claim time', async function () {
           (await this.tokenFaucet.nextClaimTime(recipient))
-            .should.be.bignumber.equal((await time.latest()) + time.duration.days(1));
+            .should.be.bignumber.equal((await time.latest()).add(time.duration.days(1)));
         });
 
         it('should have the right referral', async function () {
@@ -146,7 +137,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
           });
 
           it('referral should have a right length of referred users', async function () {
-            (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(1);
+            (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(new BN(1));
           });
 
           it('referral should have recipient in its referred list', async function () {
@@ -167,20 +158,6 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         });
       };
 
-      describe('via fallback function', function () {
-        beforeEach(async function () {
-          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
-        });
-
-        describe('if sending more than 0', function () {
-          it('reverts', async function () {
-            await shouldFail.reverting(this.tokenFaucet.sendTransaction({ value: 1, from: recipient }));
-          });
-        });
-
-        getTokens(ZERO_ADDRESS);
-      });
-
       describe('via getTokens', function () {
         beforeEach(async function () {
           await this.tokenFaucet.getTokens({ from: recipient });
@@ -196,7 +173,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
         describe('if referral is msg sender', function () {
           it('reverts', async function () {
-            await shouldFail.reverting(this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }));
+            await expectRevert.unspecified(this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }));
           });
         });
 
@@ -205,23 +182,13 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     });
 
     describe('calling twice in the same day', function () {
-      describe('via fallback function', function () {
-        beforeEach(async function () {
-          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
-        });
-
-        it('reverts', async function () {
-          await shouldFail.reverting(this.tokenFaucet.sendTransaction({ value: 0, from: recipient }));
-        });
-      });
-
       describe('via getTokens', function () {
         beforeEach(async function () {
           await this.tokenFaucet.getTokens({ from: recipient });
         });
 
         it('reverts', async function () {
-          await shouldFail.reverting(this.tokenFaucet.getTokens({ from: recipient }));
+          await expectRevert.unspecified(this.tokenFaucet.getTokens({ from: recipient }));
         });
       });
 
@@ -231,27 +198,16 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         });
 
         it('reverts', async function () {
-          await shouldFail.reverting(this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }));
+          await expectRevert.unspecified(this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }));
         });
       });
     });
 
     describe('calling twice in different days', function () {
-      describe('via fallback function', function () {
-        beforeEach(async function () {
-          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
-          await time.increaseTo((await time.latest()) + time.duration.days(1));
-        });
-
-        it('success', async function () {
-          await this.tokenFaucet.sendTransaction({ value: 0, from: recipient });
-        });
-      });
-
       describe('via getTokens', function () {
         beforeEach(async function () {
           await this.tokenFaucet.getTokens({ from: recipient });
-          await time.increaseTo((await time.latest()) + time.duration.days(1));
+          await time.increaseTo((await time.latest()).add(time.duration.days(1)));
         });
 
         it('success', async function () {
@@ -262,7 +218,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
       describe('via getTokensWithReferral', function () {
         beforeEach(async function () {
           await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
-          await time.increaseTo((await time.latest()) + time.duration.days(1));
+          await time.increaseTo((await time.latest()).add(time.duration.days(1)));
         });
 
         it('success', async function () {
