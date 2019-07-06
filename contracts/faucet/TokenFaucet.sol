@@ -3,6 +3,7 @@ pragma solidity ^0.5.10;
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import "eth-token-recover/contracts/TokenRecover.sol";
+import "dao-smartcontracts/contracts/dao/DAO.sol";
 
 /**
  * @title TokenFaucet
@@ -33,6 +34,9 @@ contract TokenFaucet is TokenRecover {
     // the token to distribute
     IERC20 private _token;
 
+    // the DAO smart contract
+    DAO private _dao;
+
     // the daily rate of tokens distributed
     uint256 private _dailyRate;
 
@@ -55,15 +59,25 @@ contract TokenFaucet is TokenRecover {
      * @param token Address of the token being distributed
      * @param dailyRate Daily rate of tokens distributed
      * @param referralPerMille The value earned by referral per mille
+     * @param dao DAO the decentralized organization address
      */
-    constructor(address token, uint256 dailyRate, uint256 referralPerMille) public {
-        require(token != address(0));
-        require(dailyRate > 0);
-        require(referralPerMille > 0);
+    constructor(
+        address token,
+        uint256 dailyRate,
+        uint256 referralPerMille,
+        address payable dao
+    )
+        public
+    {
+        require(token != address(0), "TokenFaucet: token is the zero address");
+        require(dailyRate > 0, "TokenFaucet: dailyRate is 0");
+        require(referralPerMille > 0, "TokenFaucet: referralPerMille is 0");
+        require(dao != address(0), "TokenFaucet: dao is the zero address");
 
         _token = IERC20(token);
         _dailyRate = dailyRate;
         _referralPerMille = referralPerMille;
+        _dao = DAO(dao);
     }
 
     /**
@@ -79,7 +93,7 @@ contract TokenFaucet is TokenRecover {
      * @param referral Address to an account that is referring
      */
     function getTokensWithReferral(address referral) public {
-        require(referral != msg.sender);
+        require(referral != msg.sender, "TokenFaucet: referral cannot be message sender");
 
         // distribute tokens
         _distributeTokens(msg.sender, referral);
@@ -193,13 +207,36 @@ contract TokenFaucet is TokenRecover {
     }
 
     /**
+     * @dev The way in which faucet tokens rate is calculated
+     * @param account Address receiving the tokens
+     * @return Number of tokens that can be received
+     */
+    function getTokenAmount(address account) public view returns (uint256) {
+        uint256 tokenAmount = _dailyRate;
+
+        if (_dao.isMember(account)) {
+            tokenAmount = tokenAmount.mul(2);
+
+            if (_dao.stakedTokensOf(account) > 0) {
+                tokenAmount = tokenAmount.mul(2);
+            }
+
+            if (_dao.usedTokensOf(account) > 0) {
+                tokenAmount = tokenAmount.mul(2);
+            }
+        }
+
+        return tokenAmount;
+    }
+
+    /**
      * @dev change daily rate and referral per mille
      * @param newDailyRate Daily rate of tokens distributed
      * @param newReferralPerMille The value earned by referral per mille
      */
     function setRates(uint256 newDailyRate, uint256 newReferralPerMille) public onlyOwner {
-        require(newDailyRate > 0);
-        require(newReferralPerMille > 0);
+        require(newDailyRate > 0, "TokenFaucet: dailyRate is 0");
+        require(newReferralPerMille > 0, "TokenFaucet: referralPerMille is 0");
 
         _dailyRate = newDailyRate;
         _referralPerMille = newReferralPerMille;
@@ -212,7 +249,9 @@ contract TokenFaucet is TokenRecover {
      */
     function _distributeTokens(address account, address referral) internal {
         // solhint-disable-next-line not-rely-on-time
-        require(nextClaimTime(account) <= block.timestamp);
+        require(nextClaimTime(account) <= block.timestamp, "TokenFaucet: next claim date is not passed");
+
+        uint256 tokenAmount = getTokenAmount(account);
 
         // check if recipient exists
         if (!_recipientList[account].exists) {
@@ -230,13 +269,13 @@ contract TokenFaucet is TokenRecover {
 
         // solhint-disable-next-line not-rely-on-time
         _recipientList[account].lastUpdate = block.timestamp;
-        _recipientList[account].tokens = _recipientList[account].tokens.add(_dailyRate);
+        _recipientList[account].tokens = _recipientList[account].tokens.add(tokenAmount);
 
         // update faucet status
-        _totalDistributedTokens = _totalDistributedTokens.add(_dailyRate);
+        _totalDistributedTokens = _totalDistributedTokens.add(tokenAmount);
 
         // transfer tokens to recipient
-        _token.safeTransfer(account, _dailyRate);
+        _token.safeTransfer(account, tokenAmount);
 
         // check referral
         if (_recipientList[account].referral != address(0)) {

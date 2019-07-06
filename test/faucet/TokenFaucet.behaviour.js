@@ -39,24 +39,27 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
       describe('if daily rate is zero', function () {
         it('reverts', async function () {
-          await expectRevert.unspecified(
-            this.tokenFaucet.setRates(0, newReferralPerMille, { from: tokenFaucetOwner })
+          await expectRevert(
+            this.tokenFaucet.setRates(0, newReferralPerMille, { from: tokenFaucetOwner }),
+            'TokenFaucet: dailyRate is 0'
           );
         });
       });
 
       describe('if referral per mille is zero', function () {
         it('reverts', async function () {
-          await expectRevert.unspecified(
-            this.tokenFaucet.setRates(newDailyRate, 0, { from: tokenFaucetOwner })
+          await expectRevert(
+            this.tokenFaucet.setRates(newDailyRate, 0, { from: tokenFaucetOwner }),
+            'TokenFaucet: referralPerMille is 0'
           );
         });
       });
 
       describe('if called by a not owner', function () {
         it('reverts', async function () {
-          await expectRevert.unspecified(
-            this.tokenFaucet.setRates(newDailyRate, newReferralPerMille, { from: thirdParty })
+          await expectRevert(
+            this.tokenFaucet.setRates(newDailyRate, newReferralPerMille, { from: thirdParty }),
+            'Ownable: caller is not the owner'
           );
         });
       });
@@ -173,7 +176,10 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
         describe('if referral is msg sender', function () {
           it('reverts', async function () {
-            await expectRevert.unspecified(this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }));
+            await expectRevert(
+              this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }),
+              'TokenFaucet: referral cannot be message sender'
+            );
           });
         });
 
@@ -188,7 +194,10 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         });
 
         it('reverts', async function () {
-          await expectRevert.unspecified(this.tokenFaucet.getTokens({ from: recipient }));
+          await expectRevert(
+            this.tokenFaucet.getTokens({ from: recipient }),
+            'TokenFaucet: next claim date is not passed'
+          );
         });
       });
 
@@ -198,7 +207,10 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
         });
 
         it('reverts', async function () {
-          await expectRevert.unspecified(this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }));
+          await expectRevert(
+            this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }),
+            'TokenFaucet: next claim date is not passed'
+          );
         });
       });
     });

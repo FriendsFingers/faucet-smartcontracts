@@ -3,48 +3,67 @@ const { ZERO_ADDRESS } = constants;
 
 const { shouldBehaveLikeTokenFaucet } = require('./TokenFaucet.behaviour');
 
-const TokenFaucet = artifacts.require('TokenFaucet');
+const ERC1363Mock = artifacts.require('ERC1363Mock');
+const DAO = artifacts.require('DAO');
 const ERC20Mock = artifacts.require('ERC20Mock');
+const TokenFaucet = artifacts.require('TokenFaucet');
 
 contract('TokenFaucet', function (accounts) {
   const [
     tokenOwner,
     tokenFaucetOwner,
+    daoOwner,
     recipient,
     referral,
     thirdParty,
   ] = accounts;
 
+  const initialERC1363Supply = new BN(1000000000);
   const initialBalance = new BN(1000000000);
 
   const dailyRate = new BN(50);
   const referralPerMille = new BN(100);
 
   beforeEach(async function () {
+    this.erc1363token = await ERC1363Mock.new(daoOwner, initialERC1363Supply, { from: daoOwner });
+    this.dao = await DAO.new(this.erc1363token.address, { from: daoOwner });
+
     this.token = await ERC20Mock.new(tokenOwner, initialBalance, { from: tokenOwner });
   });
 
   context('creating a valid faucet', function () {
-    describe('if token address is the zero address', function () {
+    describe('requires a non-null token', function () {
       it('reverts', async function () {
-        await expectRevert.unspecified(
-          TokenFaucet.new(ZERO_ADDRESS, dailyRate, referralPerMille, { from: tokenFaucetOwner })
+        await expectRevert(
+          TokenFaucet.new(ZERO_ADDRESS, dailyRate, referralPerMille, this.dao.address, { from: tokenFaucetOwner }),
+          'TokenFaucet: token is the zero address'
         );
       });
     });
 
-    describe('if daily rate is zero', function () {
+    describe('requires a non-null dailyRate', function () {
       it('reverts', async function () {
-        await expectRevert.unspecified(
-          TokenFaucet.new(this.token.address, 0, referralPerMille, { from: tokenFaucetOwner })
+        await expectRevert(
+          TokenFaucet.new(this.token.address, 0, referralPerMille, this.dao.address, { from: tokenFaucetOwner }),
+          'TokenFaucet: dailyRate is 0'
         );
       });
     });
 
-    describe('if referral per mille is zero', function () {
+    describe('requires a non-null referralPerMille', function () {
       it('reverts', async function () {
         await expectRevert.unspecified(
-          TokenFaucet.new(this.token.address, dailyRate, 0, { from: tokenFaucetOwner })
+          TokenFaucet.new(this.token.address, dailyRate, 0, this.dao.address, { from: tokenFaucetOwner }),
+          'TokenFaucet: referralPerMille is 0'
+        );
+      });
+    });
+
+    describe('requires a non-null dao', function () {
+      it('reverts', async function () {
+        await expectRevert.unspecified(
+          TokenFaucet.new(this.token.address, dailyRate, 0, ZERO_ADDRESS, { from: tokenFaucetOwner }),
+          'TokenFaucet: referralPerMille is 0'
         );
       });
     });
@@ -56,6 +75,7 @@ contract('TokenFaucet', function (accounts) {
         this.token.address,
         dailyRate,
         referralPerMille,
+        this.dao.address,
         { from: tokenFaucetOwner }
       );
 
