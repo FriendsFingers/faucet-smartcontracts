@@ -282,16 +282,19 @@ contract TokenFaucet is TokenRecover {
             // referral is only the first one referring
             address firstReferral = _recipientList[account].referral;
 
-            uint256 referralEarnedTokens = referralTokens();
+            // referral can earn only if it is dao member
+            if (_dao.isMember(firstReferral)) {
+                uint256 referralEarnedTokens = referralTokens();
 
-            // update referral status
-            _referralList[firstReferral].tokens = _referralList[firstReferral].tokens.add(referralEarnedTokens);
+                // update referral status
+                _referralList[firstReferral].tokens = _referralList[firstReferral].tokens.add(referralEarnedTokens);
 
-            // update faucet status
-            _totalDistributedTokens = _totalDistributedTokens.add(referralEarnedTokens);
+                // update faucet status
+                _totalDistributedTokens = _totalDistributedTokens.add(referralEarnedTokens);
 
-            // transfer tokens to referral
-            _token.safeTransfer(firstReferral, referralEarnedTokens);
+                // transfer tokens to referral
+                _token.safeTransfer(firstReferral, referralEarnedTokens);
+            }
         }
     }
 }

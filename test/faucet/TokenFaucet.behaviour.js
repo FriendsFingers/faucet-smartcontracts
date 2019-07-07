@@ -96,77 +96,104 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     });
 
     describe('calling getTokens the first time', function () {
-      const getTokens = function (recipient, referralAddress) {
-        beforeEach(async function () {
+      const getTokens = function (recipientAddress, referralAddress) {
+        context('should claim tokens', function () {
+          beforeEach(async function () {
+            if (referralAddress !== ZERO_ADDRESS) {
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            } else {
+              await this.tokenFaucet.getTokens({ from: recipientAddress });
+            }
+          });
+
+          it('should increase recipients length', async function () {
+            (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(1));
+          });
+
+          it('recipients array should start with recipient address', async function () {
+            (await this.tokenFaucet.getRecipientAddress(0)).should.be.equal(recipientAddress);
+          });
+
+          it('should transfer the daily rate of tokens to recipient', async function () {
+            (await this.token.balanceOf(recipientAddress)).should.be.bignumber.equal(dailyRate);
+          });
+
+          it('should increase received tokens of the daily rate for recipient', async function () {
+            (await this.tokenFaucet.receivedTokens(recipientAddress)).should.be.bignumber.equal(dailyRate);
+          });
+
+          it('should adjust last update for recipient', async function () {
+            (await this.tokenFaucet.lastUpdate(recipientAddress)).should.be.bignumber.equal(await time.latest());
+          });
+
+          it('should have right next claim time', async function () {
+            (await this.tokenFaucet.nextClaimTime(recipientAddress))
+              .should.be.bignumber.equal((await time.latest()).add(time.duration.days(1)));
+          });
+
+          it('should have the right referral', async function () {
+            (await this.tokenFaucet.getReferral(recipientAddress)).should.be.equal(referralAddress);
+          });
+
           if (referralAddress !== ZERO_ADDRESS) {
-            await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
+            it('referral should have a right length of referred users', async function () {
+              (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(new BN(1));
+            });
+
+            it('referral should have recipient in its referred list', async function () {
+              const referredAddresses = await this.tokenFaucet.getReferredAddresses(referralAddress);
+              referredAddresses.length.should.be.equal(1);
+              referredAddresses[0].should.be.equal(recipientAddress);
+            });
           } else {
-            await this.tokenFaucet.getTokens({ from: recipient });
+            it('should increase total distributed tokens of the daily rate', async function () {
+              (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate);
+            });
           }
-        });
 
-        it('should increase recipients length', async function () {
-          (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(1));
-        });
-
-        it('recipients array should start with recipient address', async function () {
-          (await this.tokenFaucet.getRecipientAddress(0)).should.be.equal(recipient);
-        });
-
-        it('should transfer the daily rate of tokens to recipient', async function () {
-          (await this.token.balanceOf(recipient)).should.be.bignumber.equal(dailyRate);
-        });
-
-        it('should increase received tokens of the daily rate for recipient', async function () {
-          (await this.tokenFaucet.receivedTokens(recipient)).should.be.bignumber.equal(dailyRate);
-        });
-
-        it('should adjust last update for recipient', async function () {
-          (await this.tokenFaucet.lastUpdate(recipient)).should.be.bignumber.equal(await time.latest());
-        });
-
-        it('should have right next claim time', async function () {
-          (await this.tokenFaucet.nextClaimTime(recipient))
-            .should.be.bignumber.equal((await time.latest()).add(time.duration.days(1)));
-        });
-
-        it('should have the right referral', async function () {
-          (await this.tokenFaucet.getReferral(recipient)).should.be.equal(referralAddress);
+          it('should decrease remaining tokens', async function () {
+            (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(
+              await this.token.balanceOf(this.tokenFaucet.address)
+            );
+          });
         });
 
         if (referralAddress !== ZERO_ADDRESS) {
-          it('should transfer the referral per mille to referral', async function () {
-            (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralTokens);
+          context('if referral is not dao member', function () {
+            beforeEach(async function () {
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            });
+
+            it('referral should not receive the referral per mille', async function () {
+              (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(new BN(0));
+            });
+
+            it('should increase total distributed tokens of the daily rate', async function () {
+              (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate);
+            });
           });
 
-          it('should increase referral earned token by referral per mille', async function () {
-            (await this.tokenFaucet.earnedByReferral(referralAddress)).should.be.bignumber.equal(referralTokens);
-          });
+          context('if referral is dao member', function () {
+            beforeEach(async function () {
+              await this.dao.join({ from: referralAddress });
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            });
 
-          it('should increase total distributed tokens of the daily rate plus referral per mille', async function () {
-            (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.add(referralTokens));
-          });
+            it('should transfer the referral per mille to referral', async function () {
+              (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralTokens);
+            });
 
-          it('referral should have a right length of referred users', async function () {
-            (await this.tokenFaucet.getReferredAddressesLength(referralAddress)).should.be.bignumber.equal(new BN(1));
-          });
+            it('should increase referral earned token by referral per mille', async function () {
+              (await this.tokenFaucet.earnedByReferral(referralAddress)).should.be.bignumber.equal(referralTokens);
+            });
 
-          it('referral should have recipient in its referred list', async function () {
-            const referredAddresses = await this.tokenFaucet.getReferredAddresses(referralAddress);
-            referredAddresses.length.should.be.equal(1);
-            referredAddresses[0].should.be.equal(recipient);
-          });
-        } else {
-          it('should increase total distributed tokens of the daily rate', async function () {
-            (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate);
+            it('should increase total distributed tokens of the daily rate plus referral per mille', async function () {
+              (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(
+                dailyRate.add(referralTokens)
+              );
+            });
           });
         }
-
-        it('should decrease remaining tokens', async function () {
-          (await this.tokenFaucet.remainingTokens()).should.be.bignumber.equal(
-            await this.token.balanceOf(this.tokenFaucet.address)
-          );
-        });
       };
 
       describe('via getTokens', function () {
