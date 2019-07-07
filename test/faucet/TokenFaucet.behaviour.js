@@ -8,6 +8,8 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     tokenFaucetOwner,
     recipient,
     referral,
+    daoOwner,
+    dappMock,
     thirdParty,
   ] = accounts;
 
@@ -194,6 +196,97 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
             });
           });
         }
+
+        context('if recipient has staked tokens', function () {
+          beforeEach(async function () {
+            const tokenAmount = new BN(10);
+
+            await this.erc1363token.mintMock(recipient, tokenAmount, { from: daoOwner });
+            await this.erc1363token.transferAndCall(this.dao.address, tokenAmount, { from: recipient });
+
+            if (referralAddress !== ZERO_ADDRESS) {
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            } else {
+              await this.tokenFaucet.getTokens({ from: recipientAddress });
+            }
+          });
+
+          it('should transfer a double daily rate of tokens to recipient', async function () {
+            (await this.token.balanceOf(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+
+          it('should increase received tokens of a double daily rate for recipient', async function () {
+            (await this.tokenFaucet.receivedTokens(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+
+          it('should increase total distributed tokens of a double daily rate', async function () {
+            (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+        });
+
+        context('if recipient has used tokens', function () {
+          beforeEach(async function () {
+            const tokenAmount = new BN(10);
+
+            await this.erc1363token.mintMock(recipient, tokenAmount, { from: daoOwner });
+            await this.erc1363token.transferAndCall(this.dao.address, tokenAmount, { from: recipient });
+
+            await this.dao.addOperator(daoOwner, { from: daoOwner });
+            await this.dao.addDapp(dappMock, { from: daoOwner });
+
+            await this.dao.use(recipient, tokenAmount, { from: dappMock });
+
+            if (referralAddress !== ZERO_ADDRESS) {
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            } else {
+              await this.tokenFaucet.getTokens({ from: recipientAddress });
+            }
+          });
+
+          it('should transfer a double daily rate of tokens to recipient', async function () {
+            (await this.token.balanceOf(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+
+          it('should increase received tokens of a double daily rate for recipient', async function () {
+            (await this.tokenFaucet.receivedTokens(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+
+          it('should increase total distributed tokens of a double daily rate', async function () {
+            (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.muln(2));
+          });
+        });
+
+        context('if recipient has both used and staked tokens', function () {
+          beforeEach(async function () {
+            const tokenAmount = new BN(10);
+
+            await this.erc1363token.mintMock(recipient, tokenAmount, { from: daoOwner });
+            await this.erc1363token.transferAndCall(this.dao.address, tokenAmount, { from: recipient });
+
+            await this.dao.addOperator(daoOwner, { from: daoOwner });
+            await this.dao.addDapp(dappMock, { from: daoOwner });
+
+            await this.dao.use(recipient, tokenAmount.divn(2), { from: dappMock });
+
+            if (referralAddress !== ZERO_ADDRESS) {
+              await this.tokenFaucet.getTokensWithReferral(referral, { from: recipientAddress });
+            } else {
+              await this.tokenFaucet.getTokens({ from: recipientAddress });
+            }
+          });
+
+          it('should transfer a fourfold daily rate of tokens to recipient', async function () {
+            (await this.token.balanceOf(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(4));
+          });
+
+          it('should increase received tokens of a fourfold daily rate for recipient', async function () {
+            (await this.tokenFaucet.receivedTokens(recipientAddress)).should.be.bignumber.equal(dailyRate.muln(4));
+          });
+
+          it('should increase total distributed tokens of a fourfold daily rate', async function () {
+            (await this.tokenFaucet.totalDistributedTokens()).should.be.bignumber.equal(dailyRate.muln(4));
+          });
+        });
       };
 
       describe('via getTokens', function () {
