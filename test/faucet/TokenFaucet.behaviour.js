@@ -96,7 +96,15 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     });
 
     describe('calling getTokens the first time', function () {
-      const getTokens = function (referralAddress) {
+      const getTokens = function (recipient, referralAddress) {
+        beforeEach(async function () {
+          if (referralAddress !== ZERO_ADDRESS) {
+            await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
+          } else {
+            await this.tokenFaucet.getTokens({ from: recipient });
+          }
+        });
+
         it('should increase recipients length', async function () {
           (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(1));
         });
@@ -162,34 +170,57 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
       };
 
       describe('via getTokens', function () {
-        beforeEach(async function () {
-          await this.tokenFaucet.getTokens({ from: recipient });
-        });
-
-        getTokens(ZERO_ADDRESS);
-      });
-
-      describe('via getTokensWithReferral', function () {
-        beforeEach(async function () {
-          await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
-        });
-
-        describe('if referral is msg sender', function () {
+        describe('if recipient is not dao member', function () {
           it('reverts', async function () {
             await expectRevert(
-              this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }),
-              'TokenFaucet: referral cannot be message sender'
+              this.tokenFaucet.getTokens({ from: recipient }),
+              'TokenFaucet: message sender is not dao member'
             );
           });
         });
 
-        getTokens(referral);
+        describe('if recipient is dao member', function () {
+          beforeEach(async function () {
+            await this.dao.join({ from: recipient });
+          });
+
+          getTokens(recipient, ZERO_ADDRESS);
+        });
+      });
+
+      describe('via getTokensWithReferral', function () {
+        describe('if recipient is not dao member', function () {
+          it('reverts', async function () {
+            await expectRevert(
+              this.tokenFaucet.getTokensWithReferral(referral, { from: recipient }),
+              'TokenFaucet: message sender is not dao member'
+            );
+          });
+        });
+
+        describe('if recipient is dao member', function () {
+          beforeEach(async function () {
+            await this.dao.join({ from: recipient });
+          });
+
+          describe('if referral is msg sender', function () {
+            it('reverts', async function () {
+              await expectRevert(
+                this.tokenFaucet.getTokensWithReferral(recipient, { from: recipient }),
+                'TokenFaucet: referral cannot be message sender'
+              );
+            });
+          });
+
+          getTokens(recipient, referral);
+        });
       });
     });
 
     describe('calling twice in the same day', function () {
       describe('via getTokens', function () {
         beforeEach(async function () {
+          await this.dao.join({ from: recipient });
           await this.tokenFaucet.getTokens({ from: recipient });
         });
 
@@ -203,6 +234,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
       describe('via getTokensWithReferral', function () {
         beforeEach(async function () {
+          await this.dao.join({ from: recipient });
           await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
         });
 
@@ -218,6 +250,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
     describe('calling twice in different days', function () {
       describe('via getTokens', function () {
         beforeEach(async function () {
+          await this.dao.join({ from: recipient });
           await this.tokenFaucet.getTokens({ from: recipient });
           await time.increaseTo((await time.latest()).add(time.duration.days(1)));
         });
@@ -229,6 +262,7 @@ function shouldBehaveLikeTokenFaucet (accounts, cap, dailyRate, referralPerMille
 
       describe('via getTokensWithReferral', function () {
         beforeEach(async function () {
+          await this.dao.join({ from: recipient });
           await this.tokenFaucet.getTokensWithReferral(referral, { from: recipient });
           await time.increaseTo((await time.latest()).add(time.duration.days(1)));
         });

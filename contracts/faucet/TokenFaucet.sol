@@ -84,6 +84,8 @@ contract TokenFaucet is TokenRecover {
      * @dev function to be called to receive tokens
      */
     function getTokens() public {
+        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
+
         // distribute tokens
         _distributeTokens(msg.sender, address(0));
     }
@@ -93,6 +95,7 @@ contract TokenFaucet is TokenRecover {
      * @param referral Address to an account that is referring
      */
     function getTokensWithReferral(address referral) public {
+        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
         require(referral != msg.sender, "TokenFaucet: referral cannot be message sender");
 
         // distribute tokens
@@ -214,16 +217,12 @@ contract TokenFaucet is TokenRecover {
     function getTokenAmount(address account) public view returns (uint256) {
         uint256 tokenAmount = _dailyRate;
 
-        if (_dao.isMember(account)) {
+        if (_dao.stakedTokensOf(account) > 0) {
             tokenAmount = tokenAmount.mul(2);
+        }
 
-            if (_dao.stakedTokensOf(account) > 0) {
-                tokenAmount = tokenAmount.mul(2);
-            }
-
-            if (_dao.usedTokensOf(account) > 0) {
-                tokenAmount = tokenAmount.mul(2);
-            }
+        if (_dao.usedTokensOf(account) > 0) {
+            tokenAmount = tokenAmount.mul(2);
         }
 
         return tokenAmount;
@@ -278,6 +277,7 @@ contract TokenFaucet is TokenRecover {
         _token.safeTransfer(account, tokenAmount);
 
         // check referral
+
         if (_recipientList[account].referral != address(0)) {
             // referral is only the first one referring
             address firstReferral = _recipientList[account].referral;
