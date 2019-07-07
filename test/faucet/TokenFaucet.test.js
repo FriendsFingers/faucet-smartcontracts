@@ -63,8 +63,8 @@ contract('TokenFaucet', function (accounts) {
     describe('requires a non-null dao', function () {
       it('reverts', async function () {
         await expectRevert.unspecified(
-          TokenFaucet.new(this.token.address, dailyRate, 0, ZERO_ADDRESS, { from: tokenFaucetOwner }),
-          'TokenFaucet: referralPerMille is 0'
+          TokenFaucet.new(this.token.address, dailyRate, referralPerMille, ZERO_ADDRESS, { from: tokenFaucetOwner }),
+          'TokenFaucet: dao is the zero address'
         );
       });
     });
