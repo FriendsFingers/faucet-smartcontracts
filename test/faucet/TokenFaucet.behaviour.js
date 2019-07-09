@@ -79,11 +79,23 @@ function shouldBehaveLikeTokenFaucet (accounts) {
 
           describe('if valid', function () {
             beforeEach(async function () {
-              this.tokenFaucet.createFaucet(
+              await this.tokenFaucet.createFaucet(
                 this.token.address,
                 dailyRate,
                 referralPerMille,
                 { from: tokenFaucetOwner }
+              );
+            });
+
+            it('cannot be created again', async function () {
+              await expectRevert(
+                this.tokenFaucet.createFaucet(
+                  this.token.address,
+                  dailyRate,
+                  referralPerMille,
+                  { from: tokenFaucetOwner }
+                ),
+                'TokenFaucet: token faucet already exists'
               );
             });
 
