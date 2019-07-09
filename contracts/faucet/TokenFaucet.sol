@@ -14,144 +14,144 @@ contract TokenFaucet is TokenRecover {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    // struct representing the enabled faucet
+    struct FaucetDetail {
+        bool exists;
+        bool enabled;
+        uint256 dailyRate;
+        uint256 referralPerMille;
+        uint256 totalDistributedTokens;
+    }
+
     // struct representing the faucet status for an account
     struct RecipientDetail {
         bool exists;
-        uint256 tokens;
-        uint256 lastUpdate;
+        mapping(address => uint256) tokens;
+        mapping(address => uint256) lastUpdate;
         address referral;
     }
 
     // struct representing the referral status
     struct ReferralDetail {
-        uint256 tokens;
+        mapping(address => uint256) tokens;
         address[] recipients;
     }
 
     // the time between two tokens claim
     uint256 private _pauseTime = 1 days;
 
-    // the token to distribute
-    IERC20 private _token;
-
     // the DAO smart contract
     DAO private _dao;
 
-    // the daily rate of tokens distributed
-    uint256 private _dailyRate;
+    // list of addresses who received tokens
+    address[] private _recipients;
 
-    // the value earned by referral per mille
-    uint256 private _referralPerMille;
-
-    // the sum of distributed tokens
-    uint256 private _totalDistributedTokens;
+    // map of address and faucet details
+    mapping(address => FaucetDetail) private _faucetList;
 
     // map of address and received token amount
     mapping(address => RecipientDetail) private _recipientList;
-
-    // list of addresses who received tokens
-    address[] private _recipients;
 
     // map of address and referred addresses
     mapping(address => ReferralDetail) private _referralList;
 
     /**
-     * @param token Address of the token being distributed
-     * @param dailyRate Daily rate of tokens distributed
-     * @param referralPerMille The value earned by referral per mille
      * @param dao DAO the decentralized organization address
      */
-    constructor(
-        address token,
-        uint256 dailyRate,
-        uint256 referralPerMille,
-        address payable dao
-    )
-        public
-    {
-        require(token != address(0), "TokenFaucet: token is the zero address");
-        require(dailyRate > 0, "TokenFaucet: dailyRate is 0");
-        require(referralPerMille > 0, "TokenFaucet: referralPerMille is 0");
+    constructor(address payable dao) public {
         require(dao != address(0), "TokenFaucet: dao is the zero address");
 
-        _token = IERC20(token);
-        _dailyRate = dailyRate;
-        _referralPerMille = referralPerMille;
         _dao = DAO(dao);
     }
 
     /**
-     * @dev function to be called to receive tokens
+     * @return the DAO smart contract
      */
-    function getTokens() public {
-        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
-
-        // distribute tokens
-        _distributeTokens(msg.sender, address(0));
+    function dao() public view returns (DAO) {
+        return _dao;
     }
 
     /**
-     * @dev function to be called to receive tokens
-     * @param referral Address to an account that is referring
+     * @param token The token address to check
+     * @return if faucet is enabled or not
      */
-    function getTokensWithReferral(address referral) public {
-        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
-        require(referral != msg.sender, "TokenFaucet: referral cannot be message sender");
-
-        // distribute tokens
-        _distributeTokens(msg.sender, referral);
+    function isEnabled(address token) public view returns (bool) {
+        return _faucetList[token].enabled;
     }
 
     /**
-     * @return the token to distribute
-     */
-    function token() public view returns (IERC20) {
-        return _token;
-    }
-
-    /**
+     * @param token The token address to check
      * @return the daily rate of tokens distributed
      */
-    function dailyRate() public view returns (uint256) {
-        return _dailyRate;
+    function getDailyRate(address token) public view returns (uint256) {
+        return _faucetList[token].dailyRate;
     }
 
     /**
+     * @param token The token address to check
      * @return the value earned by referral for each recipient
      */
-    function referralTokens() public view returns (uint256) {
-        return _dailyRate.mul(_referralPerMille).div(1000);
+    function getReferralTokens(address token) public view returns (uint256) {
+        return _faucetList[token].dailyRate.mul(_faucetList[token].referralPerMille).div(1000);
     }
 
     /**
+     * @param token The token address to check
      * @return the sum of distributed tokens
      */
-    function totalDistributedTokens() public view returns (uint256) {
-        return _totalDistributedTokens;
+    function totalDistributedTokens(address token) public view returns (uint256) {
+        return _faucetList[token].totalDistributedTokens;
+    }
+
+    /**
+     * @dev return the number of remaining tokens to distribute
+     * @param token The token address to check
+     * @return uint256
+     */
+    function remainingTokens(address token) public view returns (uint256) {
+        return IERC20(token).balanceOf(address(this));
+    }
+
+    /**
+     * @return address of a recipient by list index
+     */
+    function getRecipientAddress(uint256 index) public view returns (address) {
+        return _recipients[index];
+    }
+
+    /**
+     * @dev return the recipients length
+     * @return uint
+     */
+    function getRecipientsLength() public view returns (uint) {
+        return _recipients.length;
     }
 
     /**
      * @param account The address to check
+     * @param token The token address to check
      * @return received token amount for the given address
      */
-    function receivedTokens(address account) public view returns (uint256) {
-        return _recipientList[account].tokens;
+    function receivedTokens(address account, address token) public view returns (uint256) {
+        return _recipientList[account].tokens[token];
     }
 
     /**
      * @param account The address to check
+     * @param token The token address to check
      * @return last tokens received timestamp
      */
-    function lastUpdate(address account) public view returns (uint256) {
-        return _recipientList[account].lastUpdate;
+    function lastUpdate(address account, address token) public view returns (uint256) {
+        return _recipientList[account].lastUpdate[token];
     }
 
     /**
      * @param account The address to check
+     * @param token The token address to check
      * @return time of next available claim or zero
      */
-    function nextClaimTime(address account) public view returns (uint256) {
-        return !_recipientList[account].exists ? 0 : _recipientList[account].lastUpdate + _pauseTime;
+    function nextClaimTime(address account, address token) public view returns (uint256) {
+        return !_recipientList[account].exists ? 0 : _recipientList[account].lastUpdate[token] + _pauseTime;
     }
 
     /**
@@ -164,10 +164,11 @@ contract TokenFaucet is TokenRecover {
 
     /**
      * @param account The address to check
+     * @param token The token address to check
      * @return earned tokens by referrals
      */
-    function earnedByReferral(address account) public view returns (uint256) {
-        return _referralList[account].tokens;
+    function earnedByReferral(address account, address token) public view returns (uint256) {
+        return _referralList[account].tokens[token];
     }
 
     /**
@@ -187,35 +188,13 @@ contract TokenFaucet is TokenRecover {
     }
 
     /**
-     * @dev return the number of remaining tokens to distribute
-     * @return uint256
-     */
-    function remainingTokens() public view returns (uint256) {
-        return _token.balanceOf(address(this));
-    }
-
-    /**
-     * @return address of a recipient by list index
-     */
-    function getRecipientAddress(uint256 index) public view returns (address) {
-        return _recipients[index];
-    }
-
-    /**
-     * @dev return the recipients length
-     * @return uint
-     */
-    function getRecipientsLength() public view returns (uint) {
-        return _recipients.length;
-    }
-
-    /**
      * @dev The way in which faucet tokens rate is calculated
+     * @param token Address of tokens being distributed
      * @param account Address receiving the tokens
      * @return Number of tokens that can be received
      */
-    function getTokenAmount(address account) public view returns (uint256) {
-        uint256 tokenAmount = _dailyRate;
+    function getTokenAmount(address token, address account) public view returns (uint256) {
+        uint256 tokenAmount = _faucetList[token].dailyRate;
 
         if (_dao.stakedTokensOf(account) > 0) {
             tokenAmount = tokenAmount.mul(2);
@@ -229,28 +208,82 @@ contract TokenFaucet is TokenRecover {
     }
 
     /**
+     * @param token Address of the token being distributed
+     * @param dailyRate Daily rate of tokens distributed
+     * @param referralPerMille The value earned by referral per mille
+     */
+    function createFaucet(address token, uint256 dailyRate, uint256 referralPerMille) public onlyOwner {
+        require(!_faucetList[token].exists, "TokenFaucet: token faucet already exists");
+        require(token != address(0), "TokenFaucet: token is the zero address");
+        require(dailyRate > 0, "TokenFaucet: dailyRate is 0");
+        require(referralPerMille > 0, "TokenFaucet: referralPerMille is 0");
+
+        _faucetList[token].exists = true;
+        _faucetList[token].enabled = true;
+        _faucetList[token].dailyRate = dailyRate;
+        _faucetList[token].referralPerMille = referralPerMille;
+    }
+
+    /**
      * @dev change daily rate and referral per mille
+     * @param token Address of tokens being updated
      * @param newDailyRate Daily rate of tokens distributed
      * @param newReferralPerMille The value earned by referral per mille
      */
-    function setRates(uint256 newDailyRate, uint256 newReferralPerMille) public onlyOwner {
+    function setFaucetRates(address token, uint256 newDailyRate, uint256 newReferralPerMille) public onlyOwner {
+        require(_faucetList[token].exists, "TokenFaucet: token faucet does not exist");
         require(newDailyRate > 0, "TokenFaucet: dailyRate is 0");
         require(newReferralPerMille > 0, "TokenFaucet: referralPerMille is 0");
 
-        _dailyRate = newDailyRate;
-        _referralPerMille = newReferralPerMille;
+        _faucetList[token].dailyRate = newDailyRate;
+        _faucetList[token].referralPerMille = newReferralPerMille;
+    }
+
+    /**
+     * @dev disable a faucet
+     * @param token Address of tokens being updated
+     */
+    function disableFaucet(address token) public onlyOwner {
+        require(_faucetList[token].exists, "TokenFaucet: token faucet does not exist");
+
+        _faucetList[token].enabled = false;
+    }
+
+    /**
+     * @dev function to be called to receive tokens
+     * @param token The token address to distribute
+     */
+    function getTokens(address token) public {
+        require(_faucetList[token].exists, "TokenFaucet: token faucet does not exist");
+        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
+
+        // distribute tokens
+        _distributeTokens(token, msg.sender, address(0));
+    }
+
+    /**
+     * @dev function to be called to receive tokens
+     * @param token The token address to distribute
+     * @param referral Address to an account that is referring
+     */
+    function getTokensWithReferral(address token, address referral) public {
+        require(_faucetList[token].exists, "TokenFaucet: token faucet does not exist");
+        require(_dao.isMember(msg.sender), "TokenFaucet: message sender is not dao member");
+        require(referral != msg.sender, "TokenFaucet: referral cannot be message sender");
+
+        // distribute tokens
+        _distributeTokens(token, msg.sender, referral);
     }
 
     /**
      * @dev distribute tokens
+     * @param token The token being distributed
      * @param account Address being distributing
      * @param referral Address to an account that is referring
      */
-    function _distributeTokens(address account, address referral) internal {
+    function _distributeTokens(address token, address account, address referral) internal {
         // solhint-disable-next-line not-rely-on-time
-        require(nextClaimTime(account) <= block.timestamp, "TokenFaucet: next claim date is not passed");
-
-        uint256 tokenAmount = getTokenAmount(account);
+        require(nextClaimTime(account, token) <= block.timestamp, "TokenFaucet: next claim date is not passed");
 
         // check if recipient exists
         if (!_recipientList[account].exists) {
@@ -264,17 +297,19 @@ contract TokenFaucet is TokenRecover {
             }
         }
 
+        uint256 tokenAmount = getTokenAmount(token, account);
+
         // update recipient status
 
         // solhint-disable-next-line not-rely-on-time
-        _recipientList[account].lastUpdate = block.timestamp;
-        _recipientList[account].tokens = _recipientList[account].tokens.add(tokenAmount);
+        _recipientList[account].lastUpdate[token] = block.timestamp;
+        _recipientList[account].tokens[token] = _recipientList[account].tokens[token].add(tokenAmount);
 
         // update faucet status
-        _totalDistributedTokens = _totalDistributedTokens.add(tokenAmount);
+        _faucetList[token].totalDistributedTokens = _faucetList[token].totalDistributedTokens.add(tokenAmount);
 
         // transfer tokens to recipient
-        _token.safeTransfer(account, tokenAmount);
+        IERC20(token).safeTransfer(account, tokenAmount);
 
         // check referral
 
@@ -284,16 +319,16 @@ contract TokenFaucet is TokenRecover {
 
             // referral can earn only if it is dao member
             if (_dao.isMember(firstReferral)) {
-                uint256 referralEarnedTokens = referralTokens();
+                uint256 referralEarnedTokens = getReferralTokens(token);
 
                 // update referral status
-                _referralList[firstReferral].tokens = _referralList[firstReferral].tokens.add(referralEarnedTokens);
+                _referralList[firstReferral].tokens[token] = _referralList[firstReferral].tokens[token].add(referralEarnedTokens);
 
                 // update faucet status
-                _totalDistributedTokens = _totalDistributedTokens.add(referralEarnedTokens);
+                _faucetList[token].totalDistributedTokens = _faucetList[token].totalDistributedTokens.add(referralEarnedTokens);
 
                 // transfer tokens to referral
-                _token.safeTransfer(firstReferral, referralEarnedTokens);
+                IERC20(token).safeTransfer(firstReferral, referralEarnedTokens);
             }
         }
     }
