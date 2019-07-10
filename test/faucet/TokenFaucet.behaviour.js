@@ -17,13 +17,6 @@ function shouldBehaveLikeTokenFaucet (accounts) {
     genericAddress,
   ] = accounts;
 
-  const initialBalance = new BN(1000000000);
-
-  const dailyRate = new BN(50);
-  const referralPerMille = new BN(100);
-
-  const referralTokens = dailyRate.mul(referralPerMille).divn(1000);
-
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by ganache
     await time.advanceBlock();
@@ -35,7 +28,18 @@ function shouldBehaveLikeTokenFaucet (accounts) {
         (await this.tokenFaucet.dao()).should.be.equal(this.dao.address);
       });
 
-      context('creating a faucet', function () {
+      it('checking initial values', async function () {
+        (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(0));
+        (await this.tokenFaucet.getReferral(recipient)).should.be.equal(ZERO_ADDRESS);
+        (await this.tokenFaucet.getReferredAddressesLength(referral)).should.be.bignumber.equal(new BN(0));
+      });
+
+      const createFaucet = function () {
+        const initialBalance = new BN(1000000000);
+
+        const dailyRate = new BN(50);
+        const referralRate = new BN(1);
+
         beforeEach(async function () {
           this.token = await ERC20Mock.new(tokenOwner, initialBalance, { from: tokenOwner });
         });
@@ -43,7 +47,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
         describe('if caller is not the owner', function () {
           it('reverts', async function () {
             await expectRevert(
-              this.tokenFaucet.createFaucet(this.token.address, dailyRate, referralPerMille, { from: thirdParty }),
+              this.tokenFaucet.createFaucet(this.token.address, dailyRate, referralRate, { from: thirdParty }),
               'Ownable: caller is not the owner'
             );
           });
@@ -53,7 +57,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
           describe('requires a non-null token', function () {
             it('reverts', async function () {
               await expectRevert(
-                this.tokenFaucet.createFaucet(ZERO_ADDRESS, dailyRate, referralPerMille, { from: tokenFaucetOwner }),
+                this.tokenFaucet.createFaucet(ZERO_ADDRESS, dailyRate, referralRate, { from: tokenFaucetOwner }),
                 'TokenFaucet: token is the zero address'
               );
             });
@@ -62,17 +66,17 @@ function shouldBehaveLikeTokenFaucet (accounts) {
           describe('requires a non-null dailyRate', function () {
             it('reverts', async function () {
               await expectRevert(
-                this.tokenFaucet.createFaucet(this.token.address, 0, referralPerMille, { from: tokenFaucetOwner }),
+                this.tokenFaucet.createFaucet(this.token.address, 0, referralRate, { from: tokenFaucetOwner }),
                 'TokenFaucet: dailyRate is 0'
               );
             });
           });
 
-          describe('requires a non-null referralPerMille', function () {
+          describe('requires a non-null referralRate', function () {
             it('reverts', async function () {
               await expectRevert(
                 this.tokenFaucet.createFaucet(this.token.address, dailyRate, 0, { from: tokenFaucetOwner }),
-                'TokenFaucet: referralPerMille is 0'
+                'TokenFaucet: referralRate is 0'
               );
             });
           });
@@ -82,7 +86,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
               await this.tokenFaucet.createFaucet(
                 this.token.address,
                 dailyRate,
-                referralPerMille,
+                referralRate,
                 { from: tokenFaucetOwner }
               );
             });
@@ -92,7 +96,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                 this.tokenFaucet.createFaucet(
                   this.token.address,
                   dailyRate,
-                  referralPerMille,
+                  referralRate,
                   { from: tokenFaucetOwner }
                 ),
                 'TokenFaucet: token faucet already exists'
@@ -133,9 +137,44 @@ function shouldBehaveLikeTokenFaucet (accounts) {
               });
             });
 
+            context('enabling faucet', function () {
+              beforeEach(async function () {
+                await this.tokenFaucet.disableFaucet(this.token.address, { from: tokenFaucetOwner });
+                (await this.tokenFaucet.isEnabled(this.token.address)).should.be.equal(false);
+              });
+
+              describe('if faucet does not exist', function () {
+                it('reverts', async function () {
+                  await expectRevert(
+                    this.tokenFaucet.enableFaucet(genericAddress, { from: tokenFaucetOwner }),
+                    'TokenFaucet: token faucet does not exist'
+                  );
+                });
+              });
+
+              describe('if caller is not the owner', function () {
+                it('reverts', async function () {
+                  await expectRevert(
+                    this.tokenFaucet.enableFaucet(this.token.address, { from: thirdParty }),
+                    'Ownable: caller is not the owner'
+                  );
+                });
+              });
+
+              describe('if success', function () {
+                beforeEach(async function () {
+                  await this.tokenFaucet.enableFaucet(this.token.address, { from: tokenFaucetOwner });
+                });
+
+                it('faucet is enabled', async function () {
+                  (await this.tokenFaucet.isEnabled(this.token.address)).should.be.equal(true);
+                });
+              });
+            });
+
             context('changing rates', function () {
               const newDailyRate = new BN(100);
-              const newReferralPerMille = new BN(200);
+              const newReferralRate = new BN(5);
 
               describe('if faucet does not exist', function () {
                 it('reverts', async function () {
@@ -143,7 +182,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                     this.tokenFaucet.setFaucetRates(
                       genericAddress,
                       newDailyRate,
-                      newReferralPerMille,
+                      newReferralRate,
                       { from: tokenFaucetOwner }
                     ),
                     'TokenFaucet: token faucet does not exist'
@@ -157,7 +196,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                     this.tokenFaucet.setFaucetRates(
                       this.token.address,
                       0,
-                      newReferralPerMille,
+                      newReferralRate,
                       { from: tokenFaucetOwner }
                     ),
                     'TokenFaucet: dailyRate is 0'
@@ -165,11 +204,11 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                 });
               });
 
-              describe('if referral per mille is zero', function () {
+              describe('if referral rate is zero', function () {
                 it('reverts', async function () {
                   await expectRevert(
                     this.tokenFaucet.setFaucetRates(this.token.address, newDailyRate, 0, { from: tokenFaucetOwner }),
-                    'TokenFaucet: referralPerMille is 0'
+                    'TokenFaucet: referralRate is 0'
                   );
                 });
               });
@@ -180,7 +219,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                     this.tokenFaucet.setFaucetRates(
                       this.token.address,
                       newDailyRate,
-                      newReferralPerMille,
+                      newReferralRate,
                       { from: thirdParty }
                     ),
                     'Ownable: caller is not the owner'
@@ -193,7 +232,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                   await this.tokenFaucet.setFaucetRates(
                     this.token.address,
                     newDailyRate,
-                    newReferralPerMille,
+                    newReferralRate,
                     { from: tokenFaucetOwner }
                   );
                 });
@@ -203,10 +242,9 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                     .should.be.bignumber.equal(newDailyRate);
                 });
 
-                it('has a valid referral tokens value', async function () {
-                  const _referralTokens = newDailyRate.mul(newReferralPerMille).divn(1000);
-                  (await this.tokenFaucet.getReferralTokens(this.token.address))
-                    .should.be.bignumber.equal(_referralTokens);
+                it('has a valid referral rate', async function () {
+                  (await this.tokenFaucet.getReferralRate(this.token.address))
+                    .should.be.bignumber.equal(newReferralRate);
                 });
               });
             });
@@ -219,10 +257,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
               context('claiming tokens', function () {
                 describe('before calling getTokens', function () {
                   it('checking initial values', async function () {
-                    (await this.tokenFaucet.getRecipientsLength()).should.be.bignumber.equal(new BN(0));
-
                     (await this.token.balanceOf(recipient)).should.be.bignumber.equal(new BN(0));
-                    (await this.tokenFaucet.getReferral(recipient)).should.be.equal(ZERO_ADDRESS);
 
                     (await this.tokenFaucet.receivedTokens(recipient, this.token.address))
                       .should.be.bignumber.equal(new BN(0));
@@ -232,8 +267,6 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                       .should.be.bignumber.equal(new BN(0));
 
                     (await this.tokenFaucet.earnedByReferral(referral, this.token.address))
-                      .should.be.bignumber.equal(new BN(0));
-                    (await this.tokenFaucet.getReferredAddressesLength(referral))
                       .should.be.bignumber.equal(new BN(0));
 
                     (await this.tokenFaucet.totalDistributedTokens(this.token.address))
@@ -324,7 +357,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                           );
                         });
 
-                        it('referral should not receive the referral per mille', async function () {
+                        it('referral should not receive the referral rate', async function () {
                           (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(new BN(0));
                         });
 
@@ -344,19 +377,131 @@ function shouldBehaveLikeTokenFaucet (accounts) {
                           );
                         });
 
-                        it('should transfer the referral per mille to referral', async function () {
-                          (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralTokens);
+                        it('should transfer the referral rate to referral', async function () {
+                          (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralRate);
                         });
 
-                        it('should increase referral earned token by referral per mille', async function () {
+                        it('should increase referral earned token by referral rate', async function () {
                           (await this.tokenFaucet.earnedByReferral(referralAddress, this.token.address))
-                            .should.be.bignumber.equal(referralTokens);
+                            .should.be.bignumber.equal(referralRate);
                         });
 
-                        it('should increase total distributed tokens of the daily rate plus referral per mille',
+                        it('should increase total distributed tokens of the daily rate plus referral rate',
                           async function () {
                             (await this.tokenFaucet.totalDistributedTokens(this.token.address))
-                              .should.be.bignumber.equal(dailyRate.add(referralTokens));
+                              .should.be.bignumber.equal(dailyRate.add(referralRate));
+                          });
+                      });
+
+                      context('if referral has staked tokens', function () {
+                        beforeEach(async function () {
+                          await this.dao.join({ from: referralAddress });
+
+                          const tokenAmount = new BN(10);
+
+                          await this.erc1363token.mintMock(referralAddress, tokenAmount, { from: daoOwner });
+                          await this.erc1363token.transferAndCall(
+                            this.dao.address, tokenAmount, { from: referralAddress }
+                          );
+
+                          await this.tokenFaucet.getTokensWithReferral(
+                            this.token.address,
+                            referral,
+                            { from: recipientAddress }
+                          );
+                        });
+
+                        it('should transfer a double referral rate to referral', async function () {
+                          (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralRate.muln(2));
+                        });
+
+                        it('should increase referral earned token by a double referral rate', async function () {
+                          (await this.tokenFaucet.earnedByReferral(referralAddress, this.token.address))
+                            .should.be.bignumber.equal(referralRate.muln(2));
+                        });
+
+                        it('should increase total distributed tokens of the daily rate plus a double referral rate',
+                          async function () {
+                            (await this.tokenFaucet.totalDistributedTokens(this.token.address))
+                              .should.be.bignumber.equal(dailyRate.add(referralRate.muln(2)));
+                          });
+                      });
+
+                      context('if referral has used tokens', function () {
+                        beforeEach(async function () {
+                          await this.dao.join({ from: referralAddress });
+
+                          const tokenAmount = new BN(10);
+
+                          await this.erc1363token.mintMock(referralAddress, tokenAmount, { from: daoOwner });
+                          await this.erc1363token.transferAndCall(
+                            this.dao.address, tokenAmount, { from: referralAddress }
+                          );
+
+                          await this.dao.addOperator(daoOwner, { from: daoOwner });
+                          await this.dao.addDapp(dappMock, { from: daoOwner });
+
+                          await this.dao.use(referral, tokenAmount, { from: dappMock });
+
+                          await this.tokenFaucet.getTokensWithReferral(
+                            this.token.address,
+                            referral,
+                            { from: recipientAddress }
+                          );
+                        });
+
+                        it('should transfer a double referral rate to referral', async function () {
+                          (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralRate.muln(2));
+                        });
+
+                        it('should increase referral earned token by a double referral rate', async function () {
+                          (await this.tokenFaucet.earnedByReferral(referralAddress, this.token.address))
+                            .should.be.bignumber.equal(referralRate.muln(2));
+                        });
+
+                        it('should increase total distributed tokens of the daily rate plus a double referral rate',
+                          async function () {
+                            (await this.tokenFaucet.totalDistributedTokens(this.token.address))
+                              .should.be.bignumber.equal(dailyRate.add(referralRate.muln(2)));
+                          });
+                      });
+
+                      context('if referral has both used and staked tokens', function () {
+                        beforeEach(async function () {
+                          await this.dao.join({ from: referralAddress });
+
+                          const tokenAmount = new BN(10);
+
+                          await this.erc1363token.mintMock(referralAddress, tokenAmount, { from: daoOwner });
+                          await this.erc1363token.transferAndCall(
+                            this.dao.address, tokenAmount, { from: referralAddress }
+                          );
+
+                          await this.dao.addOperator(daoOwner, { from: daoOwner });
+                          await this.dao.addDapp(dappMock, { from: daoOwner });
+
+                          await this.dao.use(referral, tokenAmount.divn(2), { from: dappMock });
+
+                          await this.tokenFaucet.getTokensWithReferral(
+                            this.token.address,
+                            referral,
+                            { from: recipientAddress }
+                          );
+                        });
+
+                        it('should transfer a fourfold referral rate to referral', async function () {
+                          (await this.token.balanceOf(referralAddress)).should.be.bignumber.equal(referralRate.muln(4));
+                        });
+
+                        it('should increase referral earned token by a fourfold referral rate', async function () {
+                          (await this.tokenFaucet.earnedByReferral(referralAddress, this.token.address))
+                            .should.be.bignumber.equal(referralRate.muln(4));
+                        });
+
+                        it('should increase total distributed tokens of the daily rate plus a fourfold referral rate',
+                          async function () {
+                            (await this.tokenFaucet.totalDistributedTokens(this.token.address))
+                              .should.be.bignumber.equal(dailyRate.add(referralRate.muln(4)));
                           });
                       });
                     }
@@ -596,6 +741,10 @@ function shouldBehaveLikeTokenFaucet (accounts) {
             });
           });
         });
+      };
+
+      context('creating a faucet', function () {
+        createFaucet();
       });
     });
   });

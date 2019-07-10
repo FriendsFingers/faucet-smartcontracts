@@ -5,7 +5,7 @@
 
 |  File Name  |  SHA-1 Hash  |
 |-------------|--------------|
-| dist/TokenFaucet.dist.sol | 452a7cc26c3162e0df033c7c79da2c74ca4332da |
+| dist/TokenFaucet.dist.sol | 6aecd29c5bf5fe87503adad9c3a9a198843e9928 |
 
 
 ### Contracts Description Table
@@ -152,24 +152,26 @@
 | └ | dao | Public ❗️ |   |NO❗️ |
 | └ | isEnabled | Public ❗️ |   |NO❗️ |
 | └ | getDailyRate | Public ❗️ |   |NO❗️ |
-| └ | getReferralTokens | Public ❗️ |   |NO❗️ |
+| └ | getReferralRate | Public ❗️ |   |NO❗️ |
 | └ | totalDistributedTokens | Public ❗️ |   |NO❗️ |
 | └ | remainingTokens | Public ❗️ |   |NO❗️ |
 | └ | getRecipientAddress | Public ❗️ |   |NO❗️ |
 | └ | getRecipientsLength | Public ❗️ |   |NO❗️ |
 | └ | receivedTokens | Public ❗️ |   |NO❗️ |
 | └ | lastUpdate | Public ❗️ |   |NO❗️ |
-| └ | nextClaimTime | Public ❗️ |   |NO❗️ |
 | └ | getReferral | Public ❗️ |   |NO❗️ |
 | └ | earnedByReferral | Public ❗️ |   |NO❗️ |
 | └ | getReferredAddresses | Public ❗️ |   |NO❗️ |
 | └ | getReferredAddressesLength | Public ❗️ |   |NO❗️ |
-| └ | getTokenAmount | Public ❗️ |   |NO❗️ |
+| └ | nextClaimTime | Public ❗️ |   |NO❗️ |
 | └ | createFaucet | Public ❗️ | 🛑  | onlyOwner |
 | └ | setFaucetRates | Public ❗️ | 🛑  | onlyOwner |
 | └ | disableFaucet | Public ❗️ | 🛑  | onlyOwner |
+| └ | enableFaucet | Public ❗️ | 🛑  | onlyOwner |
 | └ | getTokens | Public ❗️ | 🛑  |NO❗️ |
 | └ | getTokensWithReferral | Public ❗️ | 🛑  |NO❗️ |
+| └ | _getRecipientTokenAmount | Internal 🔒 |   | |
+| └ | _getReferralTokenAmount | Internal 🔒 |   | |
 | └ | _distributeTokens | Internal 🔒 | 🛑  | |
 
 
