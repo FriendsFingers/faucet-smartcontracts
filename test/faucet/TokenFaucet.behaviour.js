@@ -211,7 +211,7 @@ function shouldBehaveLikeTokenFaucet (accounts) {
               });
             });
 
-            describe('sending tokens to faucet', function () {
+            describe('faucet behaviors', function () {
               beforeEach(async function () {
                 await this.token.transfer(this.tokenFaucet.address, initialBalance, { from: tokenOwner });
               });
