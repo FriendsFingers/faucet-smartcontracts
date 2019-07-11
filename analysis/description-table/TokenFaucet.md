@@ -5,7 +5,7 @@
 
 |  File Name  |  SHA-1 Hash  |
 |-------------|--------------|
-| dist/TokenFaucet.dist.sol | 6aecd29c5bf5fe87503adad9c3a9a198843e9928 |
+| dist/TokenFaucet.dist.sol | 082986c56509119a943cc85bca6b0fbe9aa92a4f |
 
 
 ### Contracts Description Table

@@ -1553,7 +1553,7 @@ contract TokenFaucet is TokenRecover {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    event FaucetCreated(address indexed token, uint256 value);
+    event FaucetCreated(address indexed token);
 
     // struct representing the enabled faucet
     struct FaucetDetail {
@@ -1743,6 +1743,8 @@ contract TokenFaucet is TokenRecover {
         _faucetList[token].enabled = true;
         _faucetList[token].dailyRate = dailyRate;
         _faucetList[token].referralRate = referralRate;
+
+        emit FaucetCreated(token);
     }
 
     /**

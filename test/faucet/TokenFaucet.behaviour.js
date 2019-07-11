@@ -1,4 +1,4 @@
-const { BN, constants, expectRevert, time } = require('openzeppelin-test-helpers');
+const { BN, constants, expectEvent, expectRevert, time } = require('openzeppelin-test-helpers');
 const { ZERO_ADDRESS } = constants;
 
 const { shouldBehaveLikeTokenRecover } = require('eth-token-recover/test/TokenRecover.behaviour');
@@ -83,12 +83,18 @@ function shouldBehaveLikeTokenFaucet (accounts) {
 
           describe('if valid', function () {
             beforeEach(async function () {
-              await this.tokenFaucet.createFaucet(
-                this.token.address,
-                dailyRate,
-                referralRate,
-                { from: tokenFaucetOwner }
+              ({ logs: this.logs } =
+                  await this.tokenFaucet.createFaucet(
+                    this.token.address,
+                    dailyRate,
+                    referralRate,
+                    { from: tokenFaucetOwner }
+                  )
               );
+            });
+
+            it('emits a FaucetCreated event', function () {
+              expectEvent.inLogs(this.logs, 'FaucetCreated', { token: this.token.address });
             });
 
             it('cannot be created again', async function () {
