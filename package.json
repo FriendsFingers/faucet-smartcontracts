@@ -50,9 +50,9 @@
   "license": "MIT",
   "devDependencies": {
     "chai": "^4.2.0",
-    "coveralls": "^3.0.4",
+    "coveralls": "^3.0.5",
     "eslint": "^6.0.1",
-    "eslint-config-standard": "^12.0.0",
+    "eslint-config-standard": "^13.0.1",
     "eslint-plugin-import": "^2.18.0",
     "eslint-plugin-mocha-no-only": "^1.1.0",
     "eslint-plugin-node": "^9.1.0",
@@ -68,7 +68,7 @@
     "solhint": "^2.1.0",
     "solidity-coverage": "github:rotcivegaf/solidity-coverage#5875f5b7bc74d447f3312c9c0e9fc7814b482477",
     "surya": "^0.2.11",
-    "truffle": "^5.0.26",
+    "truffle": "^5.0.27",
     "truffle-flattener": "1.2.11"
   },
   "dependencies": {
